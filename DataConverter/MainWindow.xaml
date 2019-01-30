@@ -1,0 +1,697 @@
+﻿<dx:DXWindow
+    x:Class="DataConverter.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:custom="http://schemas.devexpress.com/winfx/2008/xaml/charts/rangecontrolclient"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+    xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+    xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+    xmlns:dxet="http://schemas.devexpress.com/winfx/2008/xaml/editors/themekeys"
+    xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+    xmlns:dxgt="http://schemas.devexpress.com/winfx/2008/xaml/grid/themekeys"
+    xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
+    xmlns:dxp="http://schemas.devexpress.com/winfx/2008/xaml/printing"
+    xmlns:dxr="http://schemas.devexpress.com/winfx/2008/xaml/ribbon"
+    xmlns:local="clr-namespace:DataConverter"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Width="1150"
+    Height="775"
+    mc:Ignorable="d"
+    BorderBrush="#FF0F89A4"
+    BorderEffect="Default"
+    BorderEffectActiveColor="#FF0FA3AA"
+    Loaded="DXWindow_Loaded"
+    Title="Oracle Data Converter"
+    WindowStartupLocation="CenterScreen">
+
+    <dx:DXWindow.Resources>
+        <Style
+            x:Key="MainInformationCellStyle"
+            BasedOn="{StaticResource {dxgt:GridRowThemeKey ResourceKey=CellStyle}}"
+            TargetType="{x:Type dxg:CellContentPresenter}">
+            <Setter Property="FontSize" Value="34" />
+        </Style>
+        <Style
+            x:Key="AdditionalInformationCellStyle"
+            BasedOn="{StaticResource {dxgt:GridRowThemeKey ResourceKey=CellStyle}}"
+            TargetType="{x:Type dxg:CellContentPresenter}">
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="31" />
+        </Style>
+        <Style x:Key="NewGameButtonStyle" TargetType="Button">
+            <Setter Property="FontFamily" Value="Resources/teen bd.ttf#Teen" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border
+                                x:Name="ButtonBorder"
+                                Background="AliceBlue"
+                                BorderThickness="2"
+                                CornerRadius="4"
+                                Padding="3">
+                                <Border.BorderBrush>
+                                    <SolidColorBrush x:Name="ButtonBorderBrush" Color="Black" />
+                                </Border.BorderBrush>
+                                <ContentPresenter Margin="4,2" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#C0C0C0" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MyFocusVisual">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Control}">
+                        <Grid Margin="3 2">
+                            <Rectangle
+                                Name="r1"
+                                Stroke="Black"
+                                StrokeDashArray="2 2"
+                                StrokeThickness="1" />
+                            <Border
+                                Width="{TemplateBinding ActualWidth}"
+                                Height="{TemplateBinding ActualHeight}"
+                                BorderThickness="1"
+                                CornerRadius="2"
+                                Name="border" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ShadowStyle">
+            <Setter Property="Control.Foreground" Value="LightGray" />
+        </Style>
+        <Style x:Key="OrangeButton" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="FontFamily" Value="Verdana" />
+            <Setter Property="FontSize" Value="11px" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MyFocusVisual}" />
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Offset="0.2" Color="#FFFFD190" />
+                        <GradientStop Offset="0.85" Color="Orange" />
+                        <GradientStop Offset="1" Color="#FFFFD190" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="DarkGray"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Name="border"
+                            Padding="4,2">
+                            <Grid>
+                                <ContentPresenter
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Name="contentShadow"
+                                    Style="{StaticResource ShadowStyle}">
+                                    <ContentPresenter.RenderTransform>
+                                        <TranslateTransform X="1.0" Y="1.0" />
+                                    </ContentPresenter.RenderTransform>
+                                </ContentPresenter>
+                                <ContentPresenter
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Name="content" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF4788c8" />
+                                <Setter Property="Foreground" Value="#FF4788c8" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Offset="0.35" Color="#FFFFD190" />
+                                            <GradientStop Offset="0.95" Color="Orange" />
+                                            <GradientStop Offset="1" Color="#FFFFD190" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="content" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TranslateTransform Y="1.0" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsDefaulted" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF282828" />
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF282828" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.7" />
+                                <Setter Property="Foreground" Value="Gray" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MyFocusVisual2">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Control}">
+                        <Grid Margin="8">
+                            <Ellipse
+                                Name="r1"
+                                Stroke="Black"
+                                StrokeDashArray="2 2"
+                                StrokeThickness="1" />
+                            <Border
+                                Width="{TemplateBinding ActualWidth}"
+                                Height="{TemplateBinding ActualHeight}"
+                                BorderThickness="1"
+                                CornerRadius="2"
+                                Name="border" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CircleButton" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MyFocusVisual2}" />
+            <Setter Property="Background" Value="#FF6DB4EF" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Ellipse Fill="{TemplateBinding Background}" />
+                            <Ellipse>
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush>
+                                        <GradientStop Offset="0" Color="#00000000" />
+                                        <GradientStop Offset="0.88" Color="#00000000" />
+                                        <GradientStop Offset="1" Color="#80000000" />
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse x:Name="highlightCircle" Margin="10">
+                                <Ellipse.Fill>
+                                    <LinearGradientBrush>
+                                        <GradientStop Offset="0" Color="#50FFFFFF" />
+                                        <GradientStop Offset="0.5" Color="#00FFFFFF" />
+                                        <GradientStop Offset="1" Color="#50FFFFFF" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <ContentPresenter
+                                x:Name="content"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="highlightCircle" Property="Fill">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0.3,0" EndPoint="0.7,1">
+                                            <GradientStop Offset="0" Color="#50FFFFFF" />
+                                            <GradientStop Offset="0.5" Color="#00FFFFFF" />
+                                            <GradientStop Offset="1" Color="#50FFFFFF" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="content" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TranslateTransform X="0.5" Y="0.5" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <LinearGradientBrush x:Key="GreenGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#006700" />
+            <GradientStop Offset="1" Color="#00ef00" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="RedGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#774040" />
+            <GradientStop Offset="1" Color="#ef4040" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BlueGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#404077" />
+            <GradientStop Offset="1" Color="#4040ef" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="CyanGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#007777" />
+            <GradientStop Offset="1" Color="#00efef" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="YellowGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#777740" />
+            <GradientStop Offset="1" Color="Yellow" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="MagentaGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#770077" />
+            <GradientStop Offset="1" Color="#ef00ef" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="OrangeGradientBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="DarkOrange" />
+            <GradientStop Offset="1" Color="Orange" />
+        </LinearGradientBrush>
+        <Style x:Key="GelButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource GreenGradientBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="RootElement">
+                            <!-- drop shadow - needs to be blurred for correct effect -->
+                            <Rectangle
+                                Margin="1,1,0,0"
+                                Fill="#40000000"
+                                RadiusX="6"
+                                RadiusY="6">
+                                <Rectangle.BitmapEffect>
+                                    <BlurBitmapEffect Radius="3" />
+                                </Rectangle.BitmapEffect>
+                            </Rectangle>
+                            <Grid
+                                x:Name="mainButton"
+                                Margin="0,0,1,1"
+                                RenderTransformOrigin="0.5,0.5">
+                                <Grid.RenderTransform>
+                                    <TransformGroup>
+                                        <TranslateTransform X="0.0" Y="0.0" />
+                                        <ScaleTransform ScaleX="1.0" ScaleY="1.0" />
+                                    </TransformGroup>
+                                </Grid.RenderTransform>
+                                <Rectangle
+                                    x:Name="mainRect"
+                                    Fill="{TemplateBinding Background}"
+                                    RadiusX="6"
+                                    RadiusY="6" />
+                                <!-- transparent rect -->
+                                <Rectangle
+                                    x:Name="glowRect"
+                                    Margin="1,1,1,1"
+                                    RadiusX="5"
+                                    RadiusY="5">
+                                    <Rectangle.Fill>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Offset="0" Color="#EFFFFFFF" />
+                                            <GradientStop Offset="1" Color="#00FFFFFF" />
+                                        </LinearGradientBrush>
+                                    </Rectangle.Fill>
+                                </Rectangle>
+                                <ContentPresenter
+                                    Margin="4,0,4,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding Content}" />
+                            </Grid>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="mainButton" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TransformGroup>
+                                            <TranslateTransform X="0.0" Y="0.0" />
+                                            <ScaleTransform ScaleX="1.03" ScaleY="1.03" />
+                                        </TransformGroup>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Foreground" Value="#FF4788c8" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="mainButton" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TransformGroup>
+                                            <TranslateTransform X="1" Y="1" />
+                                            <ScaleTransform ScaleX="1.03" ScaleY="1.03" />
+                                        </TransformGroup>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <SolidColorBrush x:Key="{dxet:ProgressBarEditThemeKey ResourceKey=AdditionalForeground}" Color="#FFFFFFFF" />
+        <SolidColorBrush x:Key="FillBrush" Color="#00000000" />
+        <ControlTemplate x:Key="{dxet:ProgressBarEditThemeKey IsThemeIndependent=True, ResourceKey=PanelLeftSideHorizontalTemplate}" TargetType="{x:Type ContentControl}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border Grid.RowSpan="2" Background="#FF0072C6" />
+                <Rectangle
+                    x:Name="Background"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Opacity="1">
+                    <Rectangle.Fill>
+                        <!--<MultiBinding>
+                            <MultiBinding.Converter>
+                                <dxe:ProgressBarHighlightConverter />
+                            </MultiBinding.Converter>
+                            <Binding Source="{StaticResource fillBrush}" />
+                            <Binding ElementName="Background" Path="ActualWidth" />
+                            <Binding ElementName="Background" Path="ActualHeight" />
+                            <Binding Path="(dxe:BaseEdit.OwnerEdit).StyleSettings.AccelerateRatio" />
+                        </MultiBinding>-->
+                        <!--<Brush>#66ff33</Brush>-->
+                        <Brush>#b1e9ef</Brush>
+                    </Rectangle.Fill>
+                </Rectangle>
+            </Grid>
+        </ControlTemplate>
+        <dxe:ToggleSwitchContentPlacement x:Key="ToggleSwitchContentPlacement1">Near</dxe:ToggleSwitchContentPlacement>
+    </dx:DXWindow.Resources>
+
+    <dx:DXWindow.Background>
+        <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+            <GradientStop Offset="0.997" Color="#CC363535" />
+            <GradientStop Color="#CCFFFFFF" />
+        </LinearGradientBrush>
+    </dx:DXWindow.Background>
+
+    <StackPanel Margin="0,0,0,-73">
+        <TextBlock
+            Margin="0 0"
+            FontSize="18"
+            FontWeight="Bold"
+            Text="Oracle Data Converter"
+            TextAlignment="Center" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock
+                x:Name="LblCmsConnectionString"
+                Grid.Row="1"
+                Grid.Column="0"
+                Height="28"
+                Margin="10 10 10 10"
+                Text="CMS Connection String" />
+            <ComboBox
+                x:Name="TbCmsConnectionString"
+                Grid.Row="1"
+                Grid.Column="1"
+                 IsEditable="True"
+                Height="28"
+                Margin="10 10 10 10"
+                >
+                <ComboBoxItem  IsSelected="False">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=NNKalona</ComboBoxItem>
+                <ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc</ComboBoxItem>
+
+                <!--<ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=NNKalona</ComboBoxItem>
+                <ComboBoxItem >Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc</ComboBoxItem>-->
+            </ComboBox>
+            <TextBlock
+                x:Name="LblOracleConnectionString"
+                Grid.Row="2"
+                Grid.Column="0"
+                Height="28"
+                Margin="10 10 10 10"
+                Text="Oracle Connection String" />
+            <ComboBox
+                x:Name="TbOracleConnectionString"
+                 IsEditable="True"                
+                Grid.Row="2"
+                Grid.Column="1"
+                Height="28"
+                Margin="10 10 10 10"
+                >
+                <ComboBoxItem>User Id=SYSTEM;Password=$munsys;Data Source=newnetservices.us:1521/XE:MSC_KALONA;</ComboBoxItem>
+                <ComboBoxItem  IsSelected="False">User Id=MSC_KALONA;Password=MSC_KALONA;Data Source=127.0.0.1:1521/XE:MSC_KALONA;</ComboBoxItem>
+                <ComboBoxItem IsSelected="True">User Id=MSC_NCC;Password=MSC_NCC;Data Source=127.0.0.1:1521/XE:MSC_NCC_LOCAL;</ComboBoxItem>
+                <ComboBoxItem IsSelected="false">User Id=MSC_NCC;Password=MSC_NCC;Data Source=127.0.0.1:1521/XE:MSC_NCC;</ComboBoxItem>
+                <ComboBoxItem>User Id=KALO;Password=KALO_NN;Data Source=NewNetServices.US:1521/XE:KALO;</ComboBoxItem>
+            </ComboBox>
+            <!--tbOracleConnectionString.Text = "";
+            //tbOracleConnectionString.Text = "";
+            tbOracleConnectionString.Text = tbOracleConnectionString_Text = "";-->
+            <TextBlock
+                x:Name="LblDb"
+                Grid.Row="0"
+                Grid.Column="0"
+                Height="28"
+                Margin="10 10 10 10"
+                Text="Oracle Database Name" />
+            <TextBox
+                x:Name="TbDb"
+                Grid.Row="0"
+                Grid.Column="1"
+                Height="28"
+                Margin="10 10 10 10"
+                Text="MSC_NCC" />
+            <dxe:ToggleSwitch
+                Name="ToggleStep"
+                CheckedStateContent="Step 2"
+                UncheckedStateContent="Step 1"
+                Grid.Row="3"
+                Grid.Column="0"
+                Grid.ColumnSpan="2"
+                ContentPlacement="{DynamicResource ToggleSwitchContentPlacement1}"
+                Margin="384,0,342,0"
+                Width="266" MinWidth="100" RenderTransformOrigin="0.5,0.5" ContentStringFormat="">
+                <dxe:ToggleSwitch.LayoutTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="0.9"/>
+                        <SkewTransform/>
+                        <RotateTransform/>
+                        <TranslateTransform/>
+                    </TransformGroup>
+                </dxe:ToggleSwitch.LayoutTransform>
+                <dxe:ToggleSwitch.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1.3" ScaleY="0.95"/>
+                        <SkewTransform/>
+                        <RotateTransform/>
+                        <TranslateTransform/>
+                    </TransformGroup>
+                </dxe:ToggleSwitch.RenderTransform>
+            </dxe:ToggleSwitch>
+
+        </Grid>
+        <StackPanel Orientation="Vertical"  Margin="10,7 , 10, 7">
+            <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
+                <CheckBox Name="Chkwc" IsChecked="True"    Content="Wirecenters" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOlt" IsChecked="True"    Content="OLTs" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOltPorts" IsChecked="True"    Content="OLTPorts" Margin="5"></CheckBox>
+                <CheckBox Name="ChkSplit" IsChecked="True"    Content="Splitters" Margin="5"></CheckBox>
+                <CheckBox Name="ChkSplitPorts" IsChecked="True"    Content="Splitter Ports" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOltSplitDp" IsChecked="True"    Content="Olt>Split>DP" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOutDPairs" IsChecked="True"    Content="Out DPairs" Margin="5"></CheckBox>
+                <CheckBox Name="ChkAssPL" IsChecked="True"    Content="Assign/PL" Margin="5"></CheckBox>
+                <CheckBox Name="ChkAssDPair" IsChecked="True"    Content="Assign DPair" Margin="5"></CheckBox>
+                <CheckBox Name="ChkAssSplitPort" IsChecked="True"    Content="Assign Split Port" Margin="5"></CheckBox>
+                <CheckBox Name="ChkAssOLT" IsChecked="True"    Content="Assign OLT" Margin="5"></CheckBox>
+
+            </StackPanel>
+            <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
+                <StackPanel  Orientation="Horizontal"  Margin="10,7 , 10, 7">
+                    <CheckBox Name="Chkjunk" IsChecked="True"    Content="Junctions" Margin="5"></CheckBox>
+                    <CheckBox Name="Chksub" IsChecked="True" Content="Subs" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkcab" IsChecked="True" Content="Cable" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkcon" IsChecked="True" Content="Conduit" Margin="5"></CheckBox>
+                </StackPanel>
+                <StackPanel  Orientation="Horizontal"  Margin="10,7 , 10, 7">
+                    <CheckBox Name="Chkcpair" IsChecked="True" Content="CPairs" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkdgroup" IsChecked="True" Content="DGroups" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkdpair" IsChecked="True" Content="DPairs" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkcpdp" IsChecked="True" Content="CPDP" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkcall" IsChecked="True" Content="Callouts" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkreverse" IsChecked="False" Content="Reverse?" Margin="50,5,5,5"></CheckBox>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button Name="BtnSkip" Click="BtnSkip_Click">Skip Current Step</Button>
+                <Button Name="BtnUnSkip" Click="BtnUnSkip_Click">UnSkip Current Step</Button>
+            </StackPanel>
+        </StackPanel>
+        <dxg:GridControl
+            x:Name="GridImportedItems"
+            Height="200"
+            Margin="10,10,10,10"
+            AutoGenerateColumns="AddNew"
+            EnableSmartColumnsGeneration="True"
+            SelectionMode="MultipleRow">
+            <dxg:GridControl.View>
+                <dxg:TableView
+                    AllowEditing="False"
+                    AllowMasterDetail="True"
+                    AllowPerPixelScrolling="True"
+                    AutoWidth="True" 
+                    Name="Gridview"
+                    RetainSelectionOnClickOutsideCheckBoxSelector="True"
+                    ShowCheckBoxSelectorColumn="True"
+                    ShowCheckBoxSelectorInGroupRow="True"
+                    ShowSelectionRectangle="True"
+                    ShowTotalSummary="True">
+                    <!--Expression="[ImportStatus] &lt;&gt; 'Success'"-->
+                    <dxg:TableView.FormatConditions>
+                        <dxg:FormatCondition
+                            ApplyToRow="True"
+                            Expression="StartsWith([ImportStatus], 'Exc')"
+                            FieldName="Type">
+                            <dx:Format Background="#FFFF9B98">
+                                <dx:Format.Icon>
+                                    <BitmapImage UriCachePolicy="{x:Null}" UriSource="pack://application:,,,/DevExpress.Xpf.Core.v18.2;component/Core/ConditionalFormatting/Images/IconSets/Symbols3_3.png" />
+                                </dx:Format.Icon>
+                            </dx:Format>
+                        </dxg:FormatCondition>
+                        <dxg:FormatCondition
+                            ApplyToRow="True"
+                            Expression="Not Contains([ImportStatus], 'Except')"
+                            FieldName="Type">
+                            <dx:Format Background="#FFD6F7C3">
+                                <dx:Format.Icon>
+                                    <BitmapImage UriCachePolicy="{x:Null}" UriSource="pack://application:,,,/DevExpress.Xpf.Core.v18.2;component/Core/ConditionalFormatting/Images/IconSets/Symbols3_1.png" />
+                                </dx:Format.Icon>
+                            </dx:Format>
+                        </dxg:FormatCondition>
+                    </dxg:TableView.FormatConditions>
+                </dxg:TableView>
+            </dxg:GridControl.View>
+            <dxg:GridColumn
+                MinWidth="100"
+                FieldName="Type"
+                IsSmart="False"
+                UnboundType="String" />
+            <dxg:GridColumn
+                MinWidth="120"
+                FieldName="SubType"
+                UnboundType="String" />
+            <dxg:GridColumn
+                MinWidth="100"
+                FieldName="Id"
+                UnboundType="String" />
+            <dxg:GridColumn
+                MinWidth="230"
+                FieldName="Guid"
+                UnboundType="String" />
+            <dxg:GridColumn
+                MinWidth="120"
+                FieldName="RecordStatus"
+                UnboundType="String" />
+            <dxg:GridColumn
+                MinWidth="200"
+                FieldName="ImportStatus"
+                UnboundType="String" />
+        </dxg:GridControl>
+        <!--<dx:SimpleButton
+            Click="btntest_Click"
+            Content="test"
+            Name="btntest" />-->
+        <dxe:ProgressBarEdit
+            x:Name="ProgressBar"
+            Height="70"
+            Margin="10 0 10 10"
+            Value="0"
+            ContentDisplayMode="Content" />
+        <Button
+            Margin="100 3 100 10"
+            Click="btnConvert_Click"
+            Content="Start"
+            Name="BtnConvert"
+            Style="{StaticResource GelButton}">
+            <Button.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#7F004667" />
+                    <GradientStop Offset="1" Color="#FF19B2B2" />
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,0,618,0" Name="Totallocs" Text="" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.Column="0"
+                Margin="200,0,25,0"
+                Text="Step" />
+            <TextBlock
+                Grid.Row="0"
+                Grid.Column="1"
+                Margin="229 0 100 0"
+                Name="Totalcabs"
+                Text="" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.Column="1"
+                Margin="200 0 100 0"
+                Text="Time" />
+            <TextBlock
+                Grid.Row="2"
+                Grid.Column="0"
+                Grid.ColumnSpan="1"
+                Margin="200 0 0 0"
+                Name="TbStep"
+                Text=" " />
+            <StackPanel
+                Grid.Row="2"
+                Grid.Column="1"
+                Grid.ColumnSpan="1"
+                Orientation="Horizontal">
+                <TextBlock
+                    Margin="0 0 0 0"
+                    Name="TimeL"
+                    Text="0" />
+                <TextBlock
+                    Margin="0 0 0 0"
+                    Name="TimeR"
+                    Text="0" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="10  0 10 0" Name="TbSuccessful" Text="0" />
+            <TextBlock Grid.Row="3" Grid.Column="2" Margin="10  0 10 0" Name="TbErrors" Text="0" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Margin="10  0 10 0" Name="TbLbl" Text="Current"/>
+
+
+
+            <TextBlock   Grid.Row="4" Grid.Column="0" Margin="10  0 10 0" Name="tbSuccessfulCallouts" Text="0"   />
+            <TextBlock Grid.Row="4" Grid.Column="2" Margin="10  0 10 0" Name="tbErrorsCallouts" Text="0" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Margin="10  0 10 0" Name="tbLblCallouts" Text="Callouts"/>
+
+
+
+        </Grid>
+    </StackPanel>
+
+</dx:DXWindow>
