@@ -15,7 +15,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Threading;
 using static DataConverter.Classes.ImporterHelper;
 // ReSharper disable CompareOfFloatsByEqualityOperator
 
@@ -45,14 +44,14 @@ namespace DataConverter
         public static string TbCmsConnectionStringText = string.Empty;
 
         public static ThreadSafeDataLayer Tsdl;
-        private volatile int currentErrors = 0;
+        public static volatile int currentErrors = 0;
 
         private double currentIteration = 0d;
 
 
         private int currentJobs;
 
-        private volatile int currentSuccess = 0;
+        public static volatile int currentSuccess = 0;
         //string[] CityList = new string[] { "Marmon", "Epping", "Crosby", "Williston", "Tioga", "Ray" };
         private List<ImportedItem> importedItemsList = new List<ImportedItem>();
 
@@ -781,18 +780,20 @@ namespace DataConverter
             try
             {
                 if (partitionlist == null || partitionlist.Count() == 0)
+               // if (partitionlist == null || Count() == 0)
                 {
                     return false;
                 }
                List<TActionInType> pl = new List<TActionInType>();
-                if (Reverse)
+                // pl = partitionlist.RandomSubset(partitionlist.Count()).ToList();
+                if(Reverse)
                 {
-                    for (int i = partitionlist.Count() - 1; i >= 0; i--)
+                    for(int i = partitionlist.Count() - 1; i >= 0; i--)
                     {
                         pl.Add(partitionlist.ElementAt(i));
                     }
-                }
-                else pl = partitionlist.ToList();
+                } else pl = partitionlist.ToList();
+              //  else pl = partitionlist.ToList();
                 //start task for each chunk of data
                 Parallel.ForEach(pl.Cast<TActionInType>(),
                                   (dataset) =>

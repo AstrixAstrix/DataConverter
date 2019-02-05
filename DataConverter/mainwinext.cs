@@ -28,6 +28,7 @@ using DevExpress.ExpressApp;
 using NewNetServices.Module.Core;
 using Task = System.Threading.Tasks.Task;
 using System.Reflection;
+using System.IO;
 
 namespace DataConverter
 {
@@ -41,7 +42,7 @@ namespace DataConverter
         public int GetSizeForPartition(int collectionSize)
         {
             //would like to have 50 or so tasks per collection so
-            int numtasks = 50; 
+            int numtasks = 50;
             while (collectionSize / numtasks < 1)
                 numtasks--;
             return collectionSize / numtasks;
@@ -491,7 +492,8 @@ namespace DataConverter
         }
 
         public void CablePairs()
-        {
+        {   CreateFileWithColumnHeaders(cpairsexeptionlist, cpColumns);
+         
             var stepName = new StackTrace().GetFrame(0).GetMethod().Name;// "Cable Pairs";
 
             var t = System.Threading.Tasks.Task.Factory
@@ -530,18 +532,6 @@ namespace DataConverter
                                  {
                                      //        //do a trans action and roll back if necessary
 
-                                     uow.BeginTransaction();
-
-                                     var cpair = new PhysicalPair(uow);
-
-                                     cpair.ExternalSystemId = int.Parse(row["ID"]);
-                                     cpair.SourceTable = cpTable; // int.Parse(row["LOCATIONID"]);  
-                                     cpair.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
-                                                       ? NewNetServices.Module.Core.DefaultFields
-                                                           .GetBusinessObjectDefault<CablePairStatus>(uow, "StatusName", row["STATUS"])
-                                                       : NewNetServices.Module.Core.DefaultFields
-                                                           .GetBusinessObjectDefault<CablePairStatus>(uow, "StatusName", "UNKNOWN");
-                                     cpair.PairNumber = int.Parse(row["NUM"]);
                                      if (!string.IsNullOrWhiteSpace(row["CABLE"])) //look up cable we probably impmorted already//{
                                      {
                                          try
@@ -550,13 +540,22 @@ namespace DataConverter
                                                  .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CABLE"]);
                                              if (cable != null)
                                              {
+                                                 var cpair = new PhysicalPair(uow);
+
+                                                 cpair.ExternalSystemId = int.Parse(row["ID"]);
+                                                 cpair.SourceTable = cpTable; // int.Parse(row["LOCATIONID"]);  
+                                                 cpair.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
+                                                     ? uow.GetObjectByKey<CablePairStatus>(NewNetServices.Module.Core.DefaultFields
+                                                         .GetStatus<CablePairStatus>(uow, row["STATUS"]))
+                                                     : uow.GetObjectByKey<CablePairStatus>(NewNetServices.Module.Core.DefaultFields
+                                                         .GetStatus<CablePairStatus>(uow, "UNKNOWN"));
+                                                 cpair.PairNumber = int.Parse(row["NUM"]);
                                                  //store guid and add to cable afterwards to avoid locking issues
                                                  //lock (locker)
                                                  //{
                                                  //    cable_cpairs_List.Add(new Tuple<Guid, Guid>(cable.Oid, cpair.Oid));
                                                  cable.CablePairs.Add(cpair);
                                                  cpair.Cable = cable;
-                                                 uow.CommitTransaction();
                                                  //}
                                                  uow.CommitChanges();
                                                  currentSuccess++;
@@ -575,32 +574,28 @@ namespace DataConverter
                                          }
                                          catch (Exception ex)
                                          {
-                                             uow.RollbackTransaction();
-                                             uow.CommitChanges();
                                              currentErrors++;
                                              NewNetServices.Module.Core.StaticHelperMethods
-                                                 .WriteOut(@"
-                                                        uow.RollbackTransaction();
+                                                 .WriteOut(@" 
                                                         puow.CommitChanges();
                                                         errorsCpairs++\n" +
                                                  $"{string.Join(", ", row)}" +
-                                                 $"\n{ex}" +
-                                                 $"\n{ex.StackTrace}" +
                                                  $"\n{ex.Source}" +
                                                  $"\n{ex.TargetSite}");
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{string.Join(",", row)}\n", cpairsexeptionlist);
                                          }
                                      }
                                      else
                                      {
                                          NewNetServices.Module.Core.StaticHelperMethods
                                              .WriteOut(@"  uow.RollbackTransaction();
-                                                throw new Exception($""Cable not found with id: {row[""CABLE ""]}"); //{
-                                         uow.RollbackTransaction();
+                                                throw new Exception($""Cable not found with id: {row[""CABLE ""]}"); //{ 
                                          throw new Exception($"Cable not found with id: {row["CABLE "]}"); //{
                                      }
                                  }
                                  catch (Exception ex)
                                  {
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{string.Join(",", row)}\n",cpairsexeptionlist);
                                      currentErrors++;
                                      ProgressMade?.Invoke(stepName,
                                                           new ImporterHelper.ProgressMadeEventArgs(new ImportedItem()
@@ -636,7 +631,7 @@ namespace DataConverter
                        (inlist) =>
                        {
                            List<List<Dictionary<string, string>>> ret = new List<List<Dictionary<string, string>>>();
-                           var cableparts = inlist.Partition(22000 /*GetSizeForPartition(inlist.Count)*/);
+                           var cableparts = inlist.Partition(GetSizeForPartition(inlist.Count));
                            cableparts.ForEach((subdata) => ret.Add(subdata.ToList()));
 
                            return ret;
@@ -647,7 +642,7 @@ namespace DataConverter
                      using (UnitOfWork uow = new UnitOfWork(Tsdl))
                      {
                          //do work
-                         cabdata.ForEach((row) =>
+                         cabdata.ForEach(async (row) =>
                              {
                                  if (Skip > 0)
                                  {
@@ -661,13 +656,11 @@ namespace DataConverter
                                         .Any(x => x.ExternalSystemId.ToString() == row["CABLEID"]));
                                  if (test)
                                  {
-                                     ImporterHelper.ProcessCable(uow,
-                                             row,
-                                             cabTable,
-                                             ref currentSuccess,
-                                             ref currentErrors,
-                                             ProgressMade,
-                                             stepName);
+                                     await ImporterHelper.ProcessCable(uow,
+                                                row,
+                                                cabTable,
+                                                ProgressMade,
+                                                stepName);
                                      uow.CommitChanges();
                                  }
                                  else
@@ -727,8 +720,6 @@ namespace DataConverter
                                  ImporterHelper.ProcessConduit(uow,
                                            row,
                                            conTable,
-                                           ref currentSuccess,
-                                           ref currentErrors,
                                            ProgressMade, stepName);
                              }
                              else
@@ -858,8 +849,12 @@ namespace DataConverter
 
 
         }
+        public const string dpairsexeptionlist = @"C:/EXES/dpX.csv";
+        public const string cpairsexeptionlist = @"C:/EXES/cpX.csv";
+        public const string cableexeptionlist = @"C:/EXES/cableX.csv";
         public void DesignationPairs()
         {
+            CreateFileWithColumnHeaders(dpairsexeptionlist, dpColumns);
             var stepName = new StackTrace().GetFrame(0).GetMethod().Name;
             var t = System.Threading.Tasks.Task.Factory
             .StartNew(() =>
@@ -887,11 +882,6 @@ namespace DataConverter
                 {
                     foreach (var row in inlist)
                     {
-                        if (Skip > 0)
-                        {
-                            Skip--;
-                            break;
-                        }
                         using (var puow = new UnitOfWork(Tsdl))
                         {
                             try
@@ -899,13 +889,8 @@ namespace DataConverter
                                 if (!puow.Query<DesignationPair>()
                                     .Any(x => x.ExternalSystemId.ToString() == row["ID"]))
                                 {
-                                    puow.BeginTransaction();
-                                    var dp = new DesignationPair(puow);
-                                    dp.ExternalSystemId = int.Parse(row["ID"]);
-                                    dp.SourceTable = dpTable;
-                                    dp.PairNumber = int.Parse(row["COUNT"]);
-                                    dp.Status = NewNetServices.Module.Core.DefaultFields
-                                        .GetBusinessObjectDefault<CablePairStatus>(puow, "StatusName", "UNKNOWN");
+
+
                                     if (!string.IsNullOrWhiteSpace(row["DGROUP"])
                                     ) //look up designation we probably omorted already//{
                                     {
@@ -916,9 +901,14 @@ namespace DataConverter
                                                                      row["DGROUP"]);
                                             if (dgroup != null)
                                             {
+                                                var dp = new DesignationPair(puow);
+                                                dp.ExternalSystemId = int.Parse(row["ID"]);
+                                                dp.SourceTable = dpTable;
+                                                dp.PairNumber = int.Parse(row["COUNT"]);
+                                                dp.Status = puow.GetObjectByKey<CablePairStatus>(NewNetServices.Module.Core.DefaultFields
+                                                    .GetStatus<CablePairStatus>(puow, "UNKNOWN"));
                                                 dgroup.DesignationPairs.Add(dp);
-                                                puow.CommitTransaction();
-                                                // }
+
                                                 puow.CommitChanges();
                                                 currentSuccess++;
                                             }
@@ -930,7 +920,6 @@ namespace DataConverter
                                         }
                                         catch (Exception ex)
                                         {
-                                            puow.RollbackTransaction();
                                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"    {ex}");
                                         }
                                     }
@@ -940,15 +929,12 @@ namespace DataConverter
                                              new ProgressMadeEventArgs(new ImportedItem()
                                              {
                                                  ImportStatus = "Success",
-
                                                  Type = "DesignationPair"
                                              }));
                             }
                             catch (Exception ex)
                             {
-                                puow.RollbackTransaction();
-
-                                currentErrors++;
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{string.Join(",", row)}\n", dpairsexeptionlist);
                                 ProgressMade?.Invoke(stepName,
                                     new ProgressMadeEventArgs(new ImportedItem()
                                     {
@@ -966,6 +952,19 @@ namespace DataConverter
                 WorkCompleted?.Invoke(stepName, EventArgs.Empty);
             });
             t.Wait();
+        }
+        public static void CreateFileWithColumnHeaders(string file, string[] cols)
+        {
+            try
+            {
+                if (!Directory.Exists(System.IO.Path.GetDirectoryName(file)))
+                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file));
+                File.WriteAllText(file, string.Join(",", cols) + "\n");
+            }
+            catch (Exception ex)
+            {
+                DXMessageBox.Show($"WTF couldn't make file???????\n{ex}");
+            }
         }
         public void DesignationPairsCablePairLink()
         {
@@ -995,23 +994,23 @@ namespace DataConverter
                             }
                             using (var uow = new UnitOfWork(Tsdl))
                             {
-                                uow.BeginTransaction();
                                 try
                                 {
                                     //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
 
-                                    string cpairid = "";
                                     CablePair cp = null;
-                                    cpairid = row["PAIRID"];
+
                                     //make sure data is populated and hasn't been processed previously
 
-                                    if (string.IsNullOrWhiteSpace(cpairid) || !int.TryParse(cpairid, out int cpid))
+                                    if (string.IsNullOrWhiteSpace(row["PAIRID"]) ||
+                                    !int.TryParse(row["PAIRID"], out int cpid))
                                     {
-                                        throw new Exception($"Cable PairId invalid :{cpairid}");
+                                        throw new Exception($"Bad Data {row["PAIRID"]}");
                                     }
+                                    if (row["LOGICALCOUNTID"] == "1") continue;//skip
 
-                                    cp = uow.Query<CablePair>().FirstOrDefault(x => x.ExternalSystemId == cpid);
-                                    if (cp == null)
+                                    ;
+                                    if ((cp = uow.Query<CablePair>().FirstOrDefault(x => x.ExternalSystemId == cpid)) == null)
                                         throw new Exception($"Cable Pair {cpid} not found"); // 
                                     if (!string.IsNullOrWhiteSpace(cp.SourceType))
                                     /* means this record has  been processed in an earlier run*/
@@ -1019,55 +1018,48 @@ namespace DataConverter
                                         //added previously
                                         //Successfulcp_dpLinks++;
                                         ProgressMade?.Invoke(stepName,
-                                                   new ImporterHelper.ProgressMadeEventArgs(new ImportedItem()
-                                                   {
-                                                       ImportStatus = "Success",
-                                                       Type = "Already Done"
-                                                   }));
+                                                             new ImporterHelper.ProgressMadeEventArgs(new ImportedItem()
+                                                             {
+                                                                 ImportStatus = "Success",
+                                                                 Type = "Already Done"
+                                                             }));
+                                    }
+                                    else if (string.IsNullOrWhiteSpace(row["LOGICALCOUNTID"]))
+                                    {
+                                        throw new Exception($"Designation PairId missing : {row["LOGICALCOUNTID"]} \ndatarow : ");
                                     }
                                     else
                                     {
-                                        var dpairid = row["LOGICALCOUNTID"];
-                                        if (dpairid.ToString() == "1")
+                                        DesignationPair dp = null;
+                                        if (int.TryParse(row["LOGICALCOUNTID"], out int dpid) &&
+                                                (dp =
+                                                    uow.Query<DesignationPair>()
+                                                        .FirstOrDefault(x => x.ExternalSystemId == dpid)) !=
+                                                null)
                                         {
-                                            throw new Exception($"Designation PairId is 1 ");
-                                        }
-                                        else if (string.IsNullOrWhiteSpace(dpairid))
-                                        {
-                                            throw new Exception($"Designation PairId missing : {dpairid} \ndatarow : ");
+                                            cp.SourceType = "CablePairLinked"; //means processed
+                                            cp.SourceTable = cpdpTable;
+                                            //add pair to designationpair.cableair collection
+                                            dp.CablePairs.Add(cp);
+                                            //set cablepair's designationpair to this despair
+                                            cp.DesignationPair = dp;
+                                            uow.CommitChanges();
+                                            currentSuccess++;
+                                            ProgressMade?.Invoke("Cable Pair -> Designation Pair Link",
+                                                    new ImporterHelper.ProgressMadeEventArgs(new ImportedItem()
+                                                    {
+                                                        SourceTable = cpdpTable,
+                                                        ImportStatus = "Success",
+                                                        Type = "CablePair -> DesignationPair Link"
+                                                    }));
                                         }
                                         else
-                                        {
-                                            DesignationPair dp = null;
-                                            if (int.TryParse(dpairid, out int dpid) &&
-                                                    (dp =
-                                                        uow.Query<DesignationPair>()
-                                                            .FirstOrDefault(x => x.ExternalSystemId == dpid)) !=
-                                                    null)
-                                            {
-                                                cp.SourceType = "CablePairLinked"; //means processed
-                                                cp.SourceTable = cpdpTable;
-                                                //add pair to designationpair.cableair collection
-                                                dp.CablePairs.Add(cp);
-                                                //set cablepair's designationpair to this despair
-                                                cp.DesignationPair = dp;
-                                                uow.CommitTransaction();
-                                                uow.CommitChanges();
-                                                currentSuccess++;
-                                                ProgressMade?.Invoke("Cable Pair -> Designation Pair Link",
-                                                        new ImporterHelper.ProgressMadeEventArgs(new ImportedItem()
-                                                        {
-                                                            SourceTable = cpdpTable,
-                                                            ImportStatus = "Success",
-                                                            Type = "CablePair -> DesignationPair Link"
-                                                        }));
-                                            }
-                                            else
-                                                throw new Exception(
-                                                        $"Designation PairId invalid or not found: {dpairid} \ndatarow : " +
-                                                        string.Join("\t | \t", row.Select(x => $"{x.Key}:{x.Value}")));
-                                        }
+                                            throw new Exception(
+                                                    $"Designation PairId invalid or not found: {row["LOGICALCOUNTID"]} \ndatarow : " +
+                                                    string.Join("\t | \t", row.Select(x => $"{x.Key}:{x.Value}")));
                                     }
+
+
                                 }
                                 catch (Exception ex)
                                 {
@@ -1636,7 +1628,7 @@ namespace DataConverter
                            ? GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterEquipmentType
                            : NewNetServices.Module.Core.DefaultFields
                                .GetBusinessObjectDefault<EquipmentType>(puow, "TypeName", "SPLITTER")).Oid;
-                       
+
                        foreach (var row in inlist)
                        {
                            if (Skip > 0)
@@ -1729,8 +1721,6 @@ namespace DataConverter
                                     if (ImporterHelper.ProcessSubscriber(uow,
                                                 row,
                                                 subTable,
-                                                ref currentSuccess,
-                                                ref currentErrors,
                                                 state,
                                                 ProgressMade, stepName))
                                     {

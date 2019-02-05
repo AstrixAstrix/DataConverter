@@ -500,11 +500,11 @@
         </Grid>
         <StackPanel Orientation="Vertical"  Margin="10,7 , 10, 7">
             <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
-                <CheckBox Name="Chkwc" IsChecked="True"    Content="Wirecenters" Margin="5"></CheckBox>
-                <CheckBox Name="ChkOlt" IsChecked="True"    Content="OLTs" Margin="5"></CheckBox>
-                <CheckBox Name="ChkOltPorts" IsChecked="True"    Content="OLTPorts" Margin="5"></CheckBox>
-                <CheckBox Name="ChkSplit" IsChecked="True"    Content="Splitters" Margin="5"></CheckBox>
-                <CheckBox Name="ChkSplitPorts" IsChecked="True"    Content="Splitter Ports" Margin="5"></CheckBox>
+                <CheckBox Name="Chkwc" IsChecked="False"    Content="Wirecenters" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOlt" IsChecked="False"    Content="OLTs" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOltPorts" IsChecked="False"    Content="OLTPorts" Margin="5"></CheckBox>
+                <CheckBox Name="ChkSplit" IsChecked="False"    Content="Splitters" Margin="5"></CheckBox>
+                <CheckBox Name="ChkSplitPorts" IsChecked="False"    Content="Splitter Ports" Margin="5"></CheckBox>
                 <CheckBox Name="ChkOltSplitDp" IsChecked="True"    Content="Olt>Split>DP" Margin="5"></CheckBox>
                 <CheckBox Name="ChkOutDPairs" IsChecked="True"    Content="Out DPairs" Margin="5"></CheckBox>
                 <CheckBox Name="ChkAssPL" IsChecked="True"    Content="Assign/PL" Margin="5"></CheckBox>
@@ -515,8 +515,8 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
                 <StackPanel  Orientation="Horizontal"  Margin="10,7 , 10, 7">
-                    <CheckBox Name="Chkjunk" IsChecked="True"    Content="Junctions" Margin="5"></CheckBox>
-                    <CheckBox Name="Chksub" IsChecked="True" Content="Subs" Margin="5"></CheckBox>
+                    <CheckBox Name="Chkjunk" IsChecked="False"    Content="Junctions" Margin="5"></CheckBox>
+                    <CheckBox Name="Chksub" IsChecked="False" Content="Subs" Margin="5"></CheckBox>
                     <CheckBox Name="Chkcab" IsChecked="True" Content="Cable" Margin="5"></CheckBox>
                     <CheckBox Name="Chkcon" IsChecked="True" Content="Conduit" Margin="5"></CheckBox>
                 </StackPanel>
