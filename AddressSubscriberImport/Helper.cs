@@ -5,15 +5,8 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using DevExpress.Xpo;
-using DevExpress.Xpo.DB;
-using NewNetServices.Module;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading.Tasks; 
+using NewNetServices.Module; 
 using NewNetServices.Module.BusinessObjects.CableManagement;
 
 namespace AddressSubscriberImport
@@ -138,6 +131,7 @@ namespace AddressSubscriberImport
             Subscriber sub = new Subscriber(uow);
             try
             {
+                Console.WriteLine($"Creating Subscriber..");
                 if (!string.IsNullOrWhiteSpace(subrow["Address_2"]))
                     sub.LocationName = subrow["Address_2"];
                 else if (!string.IsNullOrWhiteSpace(subrow["Plant_Key"]))
@@ -148,7 +142,7 @@ namespace AddressSubscriberImport
                 else sub.Status = new LocationStatus(uow) { StatusName = "ACTIVE" };
                 sub.SLID = srctable.First().ToString().ToUpper() + subrow["Addr_ID"];
                 sub.ExternalSystemId = int.TryParse(subrow["Addr_ID"], out int eid) ? eid : 0;
-                sub.SourceType = "MACC IMPORT";
+                sub.SourceType = "MACC IMPORT:" + DateTime.Now.ToShortDateString().Replace(" ", "");
                 sub.SourceTable = srctable;
                 sub.Address = uow.GetObjectByKey<Address>(newAddyGuid);
                 uow.CommitChanges();
@@ -161,28 +155,42 @@ namespace AddressSubscriberImport
                 Console.ReadKey();
                 return Guid.Empty;
             }
-        }
-
-        public static void DoMultiAddys(List<string> addressesWithMultipleSubs, List<Dictionary<string, string>> listdict, string srctable)
-        {
-            foreach (var addy in addressesWithMultipleSubs)
+            finally
             {
-                var subsforaddy = listdict.Where(x => x["Address_1"] + x["City"] + x["State"] == addy);
-
-                //create address, then subscribers    // just need the data from one of the rows since it is the same address for all the subs
-                Guid newAddyGuid = CreateAddress(subsforaddy.ElementAt(0), srctable);
-
-                using (var uow = new UnitOfWork(Program.Tsdl))
-                {
-                    foreach (var subrow in subsforaddy)
-                    {
-                        Guid newSubGuid = CreateSubscriber(uow, subrow, newAddyGuid, srctable);
-                        Console.WriteLine($"*****\nlistdict count {listdict.Count}");
-                        listdict.Remove(subrow);
-                        Console.WriteLine($"listdict count {listdict.Count}\n*****");
-                    }
-                }
+                Console.WriteLine($"Created Subscriber {++CUR_SUBSCRIBER} of {TOTAL_SUB}   {((double)CUR_SUBSCRIBER / (double)TOTAL_SUB) * 100d} %  ");
             }
+        }
+        private static readonly object locker = new object();
+        public static volatile int CUR_ADDRESS = 0, CUR_SUBSCRIBER = 0, TOTAL_SUB = 0, TOTAL_ADD = 0;
+        public static async Task DoMultiAddys(List<string> addressesWithMultipleSubs, List<Dictionary<string, string>> listdict, string srctable)
+        {
+            await Task.Run(() =>
+           {
+               foreach (var addy in addressesWithMultipleSubs)
+               {
+                   lock (locker)
+                   {
+                       var subsforaddy = listdict.Where(x => x["Address_1"]/* + x["City"] + x["State"]*/ == addy);
+
+                       //create address, then subscribers    // just need the data from one of the rows since it is the same address for all the subs
+                       Guid newAddyGuid = CreateAddress(subsforaddy.ElementAt(0), srctable);
+
+                       using (var uow = new UnitOfWork(Program.Tsdl))
+                       {
+                           int upper = subsforaddy.Count();
+                           for (int i = upper - 1; i >= 0; i--)// in subsforaddy)
+                           {
+                               var subrow = subsforaddy.ElementAt(i);
+                               Console.WriteLine("Process row...");
+                               Guid newSubGuid = CreateSubscriber(uow, subrow, newAddyGuid, srctable);
+                               Console.WriteLine($"*****\nlistdict count {listdict.Count}");
+                               listdict.Remove(subrow);
+                               Console.WriteLine($"listdict count {listdict.Count}\n*****");
+                           }
+                       }
+                   }
+               }
+           });
         }
         const string subscriberTypeName = "Subscriber";
         private static Guid CreateAddress(Dictionary<string, string> row, string srctable)
@@ -192,6 +200,7 @@ namespace AddressSubscriberImport
             {
                 using (var uow = new UnitOfWork(Program.Tsdl))
                 {
+                    Console.WriteLine($"Creating Address.. ");
                     ret = new Address(uow);
                     ret.Street = row["Address_1"];
                     ret.City = row["City"];
@@ -211,9 +220,11 @@ namespace AddressSubscriberImport
                     ret.Longitude = float.TryParse(row["Longitude"], out float lon) ? lon : 0f;
                     ret.CensusTract = float.TryParse(row["Census_Tract"], out float ct) ? ct : 0f;
                     ret.CensusBlock = float.TryParse(row["Census_Block"], out float cb) ? cb : 0f;
-                    ret.SourceType = "MACC IMPORT";
+                    ret.SourceType = "MACC IMPORT:" + DateTime.Now.ToShortDateString().Replace(" ", "");
                     ret.SourceTable = srctable;
                     uow.CommitChanges();
+
+
                 }
                 return ret.Oid;
             }
@@ -224,6 +235,25 @@ namespace AddressSubscriberImport
                 Console.ReadKey();
                 return Guid.Empty;
             }
+            finally
+            {
+                Console.WriteLine($"Created Address {++CUR_ADDRESS} of {TOTAL_ADD}   {((double)CUR_ADDRESS / (double)TOTAL_ADD) * 100d} %  ");
+            }
+        }
+        public static int GetSubAddCount(params string[] tables)
+        {
+            int ret = 0;
+            using (UnitOfWork uow = new UnitOfWork(Program.Tsdl))
+            {
+                foreach (var table in tables)
+                {
+                    var res = uow.ExecuteQuery($"Select distinct {Program.columns[1]} from {table}");
+                    TOTAL_ADD += res.ResultSet[0].Rows.Length;
+                    res = uow.ExecuteQuery($"Select   {Program.columns[0]} from {table}");
+                    TOTAL_SUB += res.ResultSet[0].Rows.Length;
+                }
+            }
+            return TOTAL_ADD + TOTAL_SUB;
         }
     }
 }

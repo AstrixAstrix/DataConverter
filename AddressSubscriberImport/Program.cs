@@ -11,8 +11,8 @@ namespace AddressSubscriberImport
 {
     class Program
     {
-        static string[] columns =
-        {
+        public static string[] columns =
+         {
             "Type",
             "Address_1",
             "Address_2",
@@ -53,6 +53,8 @@ namespace AddressSubscriberImport
             Console.WriteLine("Starting..");
             SelectedData result = null;
             Helper.SetThreadSafeDataLayer(out Tsdl, ConnectionString);
+
+            int subcount = Helper.GetSubAddCount("ADDRESSDATA", "ADDRESSDATA2");
             var t = Task.Factory
                 .StartNew(async () =>
             {
@@ -71,14 +73,14 @@ namespace AddressSubscriberImport
                     addressesWithMultipleSubs.ForEach((x) => Console.WriteLine(x));
                     Console.WriteLine("OK");
                     Console.WriteLine("Handling addresses with multiple subs...");
-                    Helper.DoMultiAddys(addressesWithMultipleSubs, listdict, "COLTON");
+                    await Helper.DoMultiAddys(addressesWithMultipleSubs, listdict, "COLTON");
                     Console.WriteLine("OK");
                     Console.WriteLine("Partitioning...");
                     var partsList = new List<List<Dictionary<string, string>>>();
                     listdict.Partition(Helper.GetSizeForPartition(listdict.Count))
                         .ForEach((x) => partsList.Add(x.ToList()));
                     Console.WriteLine($"{partsList.Count} parts of {partsList[0].Count} records.\n Beginning tasks...");
-                    //ick of tasks in parallel
+                    //kick of tasks in parallel
                     int i = 1;
                     Parallel.ForEach(partsList,
                                      (inlist) =>
@@ -87,10 +89,10 @@ namespace AddressSubscriberImport
                         tasks.Add(Task.Factory.StartNew(() => Helper.ProcessList(inlist, "COLTON")));
                         Console.WriteLine($"End Processing chunk {i++}");
                     });
-                    Console.ReadKey();
-                    await Task.WhenAll(tasks.ToArray());
 
+                    await Task.WhenAll(tasks.ToArray());
                     Console.WriteLine("Finished importing COLTON");
+                    await Task.Delay(5000);
                     Console.WriteLine("Begin MONITOR");
                     using (UnitOfWork uow = new UnitOfWork(Tsdl))
                     {
@@ -106,14 +108,14 @@ namespace AddressSubscriberImport
                         addressesWithMultipleSubs.ForEach((x) => Console.WriteLine(x));
                         Console.WriteLine("OK");
                         Console.WriteLine("Handling addresses with multiple subs...");
-                        Helper.DoMultiAddys(addressesWithMultipleSubs, listdict, "MONITOR");
+                        await Helper.DoMultiAddys(addressesWithMultipleSubs, listdict, "MONITOR");
                         Console.WriteLine("OK");
                         Console.WriteLine("Partitioning...");
                         partsList = new List<List<Dictionary<string, string>>>();
                         listdict.Partition(Helper.GetSizeForPartition(listdict.Count))
                             .ForEach((x) => partsList.Add(x.ToList()));
                         Console.WriteLine($"{partsList.Count} parts of {partsList[0].Count} records.\n Beginning tasks...");
-                        //ick of tasks in parallel
+                        //kick of tasks in parallel
                         i = 1;
                         Parallel.ForEach(partsList,
                                          (inlist) =>
@@ -122,15 +124,16 @@ namespace AddressSubscriberImport
                             tasks.Add(Task.Factory.StartNew(() => Helper.ProcessList(inlist, "MONITOR")));
                             Console.WriteLine($"End Processing chunk {i++}");
                         });
-                        Console.ReadKey();
+
                         await Task.WhenAll(tasks.ToArray());
 
                         Console.WriteLine("Finished importing MONITOR");
+                        await Task.Delay(5000);
                     }
                 }
             });//end outer task
-               // t.Wait();
-
+            t.Wait();
+            Console.WriteLine("DONE");
             Console.ReadKey();
         }
 

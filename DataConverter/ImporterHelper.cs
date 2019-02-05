@@ -991,3 +991,208 @@ namespace DataConverter.Classes
         LocationNotFound
     }
 }
+
+
+//private void HandleStep2<T>()
+//    where T : BaseObjectDateTimeStamps, IEngineeringEntity
+//{
+//    var tnames = typeof(T) == typeof(Location)
+//        ? new string[]
+//        {
+//            junkTable,
+//            subTable
+//        }
+//        : typeof(T) == typeof(Cable)
+//            ? new string[]
+//            {
+//                cabTable
+//            }
+//            : new string[]
+//            {
+//                conTable
+//            };
+//    Console.WriteLine("Start of HandleStep2");
+//    var tasks = new List<Task>();
+//    List<string[]> oraclerows_big = new List<string[]>();
+//    using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+//    {
+//        oraclerows_big = odw.GetAllCmsMunsysItemsForTable($"SP_NN_{typeof(T).Name}", "ORIG_ID", "GID", "GUID");
+//    }
+//    Dispatcher.Invoke(() => ProgressBar.Maximum += oraclerows_big.Count);
+//    var oparts = oraclerows_big.Partition(oraclerows_big.Count / 5 + 1);
+//    Parallel.ForEach(oparts,
+//                     new Action<IEnumerable<string[]>>((oraclerows) => // foreach (var oraclerows in oparts)
+//    {
+//        using (var uow = new UnitOfWork(Tsdl))
+//        {
+//            for (int i = 0; i < oraclerows.Count(); i++)
+//            {
+//                try
+//                {
+//                    var row = oraclerows.ElementAt(i);
+//                    BaseObjectDateTimeStamps loc = null;
+
+//                    foreach (var x in uow.Query<BaseObjectDateTimeStamps>()
+//                        .Where(x => x.ExternalSystemId.HasValue && x.SourceTable != string.Empty))
+//                    {
+//                        if (x.ExternalSystemId.HasValue && int.TryParse(row[0], out int row0) &&
+//                            x.ExternalSystemId == row0)
+//                        {
+//                            StaticHelperMethods.WriteOut($"externalids match \n{x.ExternalSystemId}==={int.Parse(row[0])}?");
+//                            if (tnames.Contains(x.SourceTable))
+//                            {
+//                                loc = x;
+//                                break;
+//                            }
+//                        }
+//                    }
+//                    //loc = (from x in uow.Query<BaseObjectDateTimeStamps>()
+//                    //       where
+//                    //      x.ExternalSystemId.HasValue && x.ExternalSystemId.Value.ToString().Replace(",", "").Equals(row[0], StringComparison.InvariantCultureIgnoreCase) &&
+//                    //      tnames.Contains(x.SourceTable)
+//                    //       select x)?.First();
+//                    //set our handle to the gid and oracle to our oid
+//                    if (loc != null && loc.GetType().GetProperties().Any(x => x.Name == "Handle"))
+//                    {
+//                        Console.WriteLine($"{string.Join(" | | ", row)} >> PASS");
+//                        loc.SetMemberValue("Handle", row[1]);
+//                        uow.CommitChanges();
+//                        row[2] = loc.Oid.ToString().ToUpper();
+//                        using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+//                        {
+//                            odw.SetGuidFromGidOracle($"SP_NN_{typeof(T).Name.ToUpper()}", row[1], row[2]);
+//                        }
+//                        ProgressMade?.Invoke($"{i}:  Id {row[0]} {"Success"}",
+//                                             new ProgressMadeEventArgs(new ImportedItem()
+//                                             {
+//                                                 Type = "Handle Swap",
+//                                                 ImportStatus = "Success"
+//                                             }));
+//                        continue;
+//                    }
+//                    ProgressMade?.Invoke($"{i}:  Id {row[0]} Not found ",
+//                                         new ProgressMadeEventArgs(new ImportedItem()
+//                                         {
+//                                             Type = "Not Found",
+//                                             ImportStatus = "Exception" + $"\tNot Found in:{string.Join("\t ", tnames)}"
+//                                         }));
+
+//                    Console.WriteLine($"{string.Join(" | _ | ", row)} >> FAIL");
+//                    Console.WriteLine(row[0] + "FAILED");
+//                }
+//                catch (Exception ex)
+//                {
+//                    ProgressMade?.Invoke($"X",
+//                                         new ProgressMadeEventArgs(new ImportedItem()
+//                                         {
+//                                             Type = "Not Found",
+//                                             ImportStatus = "Exception" + $"\t {ex}"
+//                                         }));
+
+//                    Console.WriteLine($"{ex}");
+//                    Console.WriteLine("Exception" + "\n" + ex);
+//                }
+//            } //end for
+//            uow.CommitChanges();
+//        } //end uow
+//    } //end foreac
+//    ));
+//}
+
+//private void HandleStep2<T>(bool singlle)
+//    where T : BaseObjectDateTimeStamps, IEngineeringEntity
+//{
+//    using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+//    {
+//        var oraclerows_big = odw.GetAllCmsMunsysItemsForTable($"SP_NN_{typeof(T).Name}",
+//                                                             -1,
+//                                                             "ORIG_ID",
+//                                                             "GID",
+//                                                             "GUID");
+//        Dispatcher.Invoke(() => ProgressBar.Maximum += oraclerows_big.Count);
+//        var oparts = oraclerows_big.Partition(oraclerows_big.Count / 5 + 1);
+//        foreach (var oraclerows in oparts)
+//        {
+//            using (var uow = new UnitOfWork(Tsdl))
+//            {
+//                for (int i = 0; i < oraclerows.Count(); i++)
+//                {
+//                    StaticHelperMethods.WriteOut($"{i}");
+//                    try
+//                    {
+//                        var row = oraclerows.ElementAt(i);
+//                        BaseObjectDateTimeStamps loc = null;
+//                        var tnames = typeof(T) == typeof(Location)
+//                            ? new string[]
+//                            {
+//                                junkTable,
+//                                subTable
+//                            }
+//                            : typeof(T) == typeof(Cable)
+//                                ? new string[]
+//                                {
+//                                    cabTable
+//                                }
+//                                : new string[]
+//                                {
+//                                    conTable
+//                                };
+//                        foreach (var x in uow.Query<BaseObjectDateTimeStamps>())
+//                        {
+//                            if (x.ExternalSystemId.HasValue &&
+//                                x.ExternalSystemId.Value.ToString().Replace(",", string.Empty) == row[0])
+//                            {
+//                                if (tnames.Contains(x.SourceTable))
+//                                {
+//                                    loc = x;
+//                                    break;
+//                                }
+//                            }
+//                        }
+//                        //loc = (from x in uow.Query<BaseObjectDateTimeStamps>()
+//                        //       where
+//                        //      x.ExternalSystemId.HasValue && x.ExternalSystemId.Value.ToString().Replace(",", "").Equals(row[0], StringComparison.InvariantCultureIgnoreCase) &&
+//                        //      tnames.Contains(x.SourceTable)
+//                        //       select x)?.First();
+//                        //set our handle to the gid and oracle to our oid
+//                        if (loc != null)
+//                        {
+//                            StaticHelperMethods.WriteOut($"{string.Join(" | | ", row)} >> PASS");
+//                            loc.SetMemberValue("Handle", row[1]);
+//                            row[2] = loc.Oid.ToString().ToUpper();
+//                            odw.SetGuidFromGidOracle($"SP_NN_{typeof(T).Name.ToUpper()}", row[1], row[2]);
+//                            ProgressMade?.Invoke(null,
+//                                                 new ProgressMadeEventArgs(new ImportedItem()
+//                                                 {
+//                                                     Id = row[0],
+//                                                     SourceTable = loc.SourceTable,
+//                                                     ImportStatus = "Success"
+//                                                 }));
+//                            continue;
+//                        }
+//                        StaticHelperMethods.WriteOut($"{string.Join(" | _ | ", row)} >> FAIL");
+//                        ProgressMade?.Invoke(null,
+//                                             new ProgressMadeEventArgs(new ImportedItem()
+//                                             {
+//                                                 Id = row[0],
+//                                                 SourceTable = " ????",
+//                                                 ImportStatus = "Exception"
+//                                             }));
+//                    }
+//                    catch (Exception ex)
+//                    {
+//                        StaticHelperMethods.WriteOut($"{ex}");
+//                        ProgressMade?.Invoke(null,
+//                                             new ProgressMadeEventArgs(new ImportedItem()
+//                                             {
+//                                                 SourceTable = " !!!!!!",
+//                                                 ImportStatus = "Exception"
+//                                             }));
+//                    }
+//                } //end for
+//                uow.CommitChanges();
+//            } //end uow
+//        } //end foreac
+//    } //end odw 
+//}
+
