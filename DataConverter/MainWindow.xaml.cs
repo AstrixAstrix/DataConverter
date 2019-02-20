@@ -642,7 +642,7 @@ namespace DataConverter
         private string[] oltPortsCols = { "OLTID", "OLTPORTID", "OLTPORTNUM" };
         private string[] oltSplitterDpCols = { "SPLITTERID", "INCABLEID", "INCABLENAME", "INCABLEOBJECTREF", "INCOUNTID", "INCOUNT", "OLTID" };
         private string[] outdPairsCols = { "SPLITTERPORTID", "DESIGNATIONPAIRID" };
-        private string[] splitterCols = { "ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE" };
+        private string[] splitterCols = { "ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE", "ADDRESS_ID" };
         private string[] splitterPortsCols = { "ID", "NAME", "STATUS", "CR_EQUIPMENT_ID" };
         private string[] subCols = new string[] {"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"};
         private string[] addCols = new string[] {"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"};

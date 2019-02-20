@@ -300,6 +300,13 @@ namespace DataConverter
 
                             uow.CommitChanges();
                         }
+                        if (!uow.Query<EquipmentType>().Any(x => x.TypeName == "VDSL"))
+                        {
+                            var ot = new EquipmentType(uow) { TypeName = "VDSL" };
+                            uow.Save(ot);
+                            uow.CommitChanges();
+                             
+                        }
                     }
                     return true;
                 });
@@ -435,26 +442,26 @@ namespace DataConverter
                 IAsyncResult statusres = del.BeginInvoke(splitterstatuses, null, null);
 
                 await Task.FromResult(statusres);
-                //wirecenter
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst
-                            .Where(s => s != "" && !uow.Query<Wirecenter>().Select(x => x.ExternalSystemId.ToString()).Contains(s))
-                        )
-                        {
-                            Wirecenter cs = new Wirecenter(uow) { ExternalSystemId = int.TryParse(str, out int eid) ? eid : 0, LocationName = str, CLLI = str, SourceTable = splitterTable };
-                            uow.CommitChanges();
-                        }
+                ////wirecenter
+                //del = new MyDelegate((lst) =>
+                //{
+                //    using (var uow = new UnitOfWork(Tsdl))
+                //    {
+                //        foreach (var str in lst
+                //            .Where(s => s != "" && !uow.Query<Wirecenter>().Select(x => x.ExternalSystemId.ToString()).Contains(s))
+                //        )
+                //        {
+                //            Wirecenter cs = new Wirecenter(uow) { ExternalSystemId = int.TryParse(str, out int eid) ? eid : 0, LocationName = str, CLLI = str, SourceTable = splitterTable };
+                //            uow.CommitChanges();
+                //        }
 
-                    }
+                //    }
 
-                    return true;
-                });
-                IAsyncResult wcres = del.BeginInvoke(wirecentersids, null, null);
+                //    return true;
+                //});
+                //IAsyncResult wcres = del.BeginInvoke(wirecentersids, null, null);
 
-                await Task.FromResult(wcres);
+                //await Task.FromResult(wcres);
 
 
 

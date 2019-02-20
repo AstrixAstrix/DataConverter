@@ -1485,37 +1485,39 @@ make aure not olt port*/
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
-                    var olttypeOid = (GlobalSystemSettings.GetInstanceFromDatabase(puow).OLT_PortType != null
-        ? GlobalSystemSettings.GetInstanceFromDatabase(puow).OLT_PortType
-        : NewNetServices.Module.Core.DefaultFields.GetBusinessObjectDefault<PortType>(puow, "TypeName", "OLT PORT")).Oid;
+                    var olttypeOid = Guid.Empty;
+                    if (!puow.Query<PortType>().Any(x => x.TypeName == "OLTPORT"))
+                    {
+                        var pt = new PortType(puow) { TypeName = "OLTPORT" };
+                        puow.CommitChanges();
+                        olttypeOid = pt.Oid;
+                    }
+                    else olttypeOid = puow.Query<PortType>().FirstOrDefault(x => x.TypeName == "OLTPORT").Oid;
+
                     foreach (var row in inlist)
                     {
-                        if (Skip > 0)
-                        {
-                            Skip--;
-                            return;
-                        }
                         //"OLTID", "OLTPORTID", "OLTPORTNUM"
                         //" ", " ", "OLTPORTNUM"
                         puow.BeginTransaction();
                         try
                         {
-                            var olt = new Port(puow);
+                            var oltPort = new Port(puow);
                             //set to olt type default
-                            olt.PortType = puow.GetObjectByKey<PortType>(olttypeOid);
-                            olt.ExternalSystemId = int.TryParse(row["OLTPORTID"], out int oltid) ? oltid : 0;
-                            olt.Equipment = puow.Query<Equipment>()
+                            oltPort.PortType = puow.GetObjectByKey<PortType>(olttypeOid);
+                            oltPort.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "PORT");
+                            oltPort.ExternalSystemId = int.TryParse(row["OLTPORTID"], out int oltid) ? oltid : 0;
+                            oltPort.Equipment = puow.Query<Equipment>()
                      .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["OLTID"]);
-                            olt.SourceTable = oltPortsTable;
-                            olt.Status = GlobalSystemSettings.GetInstanceFromDatabase(puow)
+                            oltPort.SourceTable = oltPortsTable;
+                            oltPort.Status = GlobalSystemSettings.GetInstanceFromDatabase(puow)
                  .DefaultLocationStatusUnknown;
-                            olt.Number = int.TryParse(row["OLTPORTNUM"], out int pnum) ? pnum : 0; ;
-                            olt.LocationName = row["OLTPORTNUM"];
+                            oltPort.Number = int.TryParse(row["OLTPORTNUM"], out int pnum) ? pnum : 0; ;
+                            oltPort.LocationName = row["OLTPORTNUM"];
                             //olt.Rack = row["RACK_CODE"];
                             //olt.RackNum = int.TryParse(row["SUB_RACK_CODE"], out int src) ? src : 0;
                             //olt.Shelf = row["CARD_NUM"];
                             //olt.ShelfNum = int.TryParse(row["PORT_POSITION"], out int sn) ? sn : 0;
-                            olt.Wirecenter = olt.Equipment?.Wirecenter;// puow.Query<Wirecenter>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_SITE_ID"]);
+                            oltPort.Wirecenter = oltPort.Equipment?.Wirecenter;// puow.Query<Wirecenter>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_SITE_ID"]);
 
                             puow.CommitTransaction();
                             puow.CommitChanges();
@@ -1570,27 +1572,36 @@ make aure not olt port*/
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
+                    var olttypeOid = Guid.Empty;
+                    if (!puow.Query<EquipmentType>().Any(x => x.TypeName == "OLT"))
+                    {
+                        var st = new EquipmentType(puow) { TypeName = "OLT", TypeDescription = "OLT" };
+                        olttypeOid = st.Oid;
+                        puow.CommitChanges();
+                    }
+                    //the ones that aren't really olt
+                    if (!puow.Query<EquipmentType>().Any(x => x.TypeName == "VDSL"))
+                    {
+                        var st = new EquipmentType(puow) { TypeName = "VDSL", TypeDescription = "VDSL" };
+
+                        puow.CommitChanges();
+                    }
                     foreach (var row in inlist)
                     {
 
                         if (!puow.Query<Equipment>().Any(x => x.ExternalSystemId.ToString() == row["OLT_ID"]))
                         {
-                            if (GlobalSystemSettings.GetInstanceFromDatabase(puow).OLT_EquipmentType == null)
-                            {
-                                var ot = new EquipmentType(puow) { TypeName = "OLT" };
-                                puow.Save(ot);
-                                puow.CommitChanges();
-                                GlobalSystemSettings.GetInstanceFromDatabase(puow).OLT_EquipmentType = ot;
 
-                                puow.CommitChanges();
-                            }
-                            var olttypeOid = GlobalSystemSettings.GetInstanceFromDatabase(puow).OLT_EquipmentType.Oid;
 
                             try
                             {
+
+                                // TODO:VDSLEQUIPMENT TYPE Location Typoe
                                 var olt = new Equipment(puow);
+
                                 //set to olt type default
-                                olt.EquipmentType = puow.GetObjectByKey<EquipmentType>(olttypeOid);
+                                olt.EquipmentType = row["OLT_CODE"].Contains("VDSL") ? puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "VDSL") : puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "OLT");
+                                olt.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "EQUIPMENT");
                                 olt.ExternalSystemId = int.TryParse(row["OLT_ID"], out int oltid) ? oltid : 0;
                                 olt.SourceTable = oltTable;
                                 olt.LocationName = row["OLTNAME"];
@@ -1601,7 +1612,7 @@ make aure not olt port*/
                                 olt.Shelf = row["CARD_NUM"];
                                 olt.ShelfNum = int.TryParse(row["PORT_POSITION"], out int sn) ? sn : 0;
                                 olt.Wirecenter = puow.Query<Wirecenter>()
-                            .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_SITE_ID"]);
+                            .FirstOrDefault(x => x.SpaceID == row["CR_SITE_ID"]);
 
                                 puow.CommitChanges();
                                 currentSuccess++;
@@ -1729,28 +1740,22 @@ make aure not olt port*/
         });
                 return ret;
             };
-            //action to take on eas=ch task data
-            /*   Action<List<Dictionary<string, string>>> */
+            //action to take on eas=ch task data 
             Action<List<Dictionary<string, string>>> processorAction = (inlist) =>
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
                     splitterPorttypeOid = Guid.Empty;
-                    if (GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterPortType == null)
+                    if (!puow.Query<PortType>().Any(x => x.TypeName == "SPLITTERPORT"))
                     {
-                        GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterPortType = new PortType(puow) { TypeName = "SPLITTERPORT" };
+                        var pt = new PortType(puow) { TypeName = "SPLITTERPORT" };
                         puow.CommitChanges();
+                        splitterPorttypeOid = pt.Oid;
                     }
-                    splitterPorttypeOid = GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterPortType.Oid;
 
                     foreach (var row in inlist)
                     {
-                        if (Skip > 0)
-                        {
-                            Skip--;
-                            return;
-                        }
-                        puow.BeginTransaction();
+
                         try
                         {
                             var splitterPort = new Port(puow);
@@ -1758,6 +1763,7 @@ make aure not olt port*/
                             //"ID", "NAME", "STATUS", "CR_EQUIPMENT_ID"
                             //" ", " ", " ", ""
                             splitterPort.PortType = puow.GetObjectByKey<PortType>(splitterPorttypeOid);
+                            splitterPort.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "PORT");
                             splitterPort.ExternalSystemId = int.TryParse(row["ID"], out int splitterPortid)
                 ? splitterPortid
                 : 0;
@@ -1900,12 +1906,12 @@ make aure not olt port*/
                 using (var puow = new UnitOfWork(Tsdl))
                 {
                     splittertypeOid = Guid.Empty;
-                    if (GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterEquipmentType == null)
+                    if (!puow.Query<EquipmentType>().Any(x => x.TypeName == "SPLITTER"))
                     {
-                        GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterEquipmentType = new EquipmentType(puow) { TypeName = "SPLITTER" };
+                        var st = new EquipmentType(puow) { TypeName = "SPLITTER" };
+                        splittertypeOid = st.Oid;
                         puow.CommitChanges();
                     }
-                    splittertypeOid = GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterEquipmentType.Oid;
 
                     foreach (var row in inlist)
                     {
@@ -1913,10 +1919,13 @@ make aure not olt port*/
                         {
                             var splitter = new Equipment(puow);
                             //set to Splitter type default
+                            //"ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE", "ADDRESS_ID"
                             //"ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE"
                             //"", "", "OBJ_REF_ID", "EQ_HOLDER_ID", " ", " ", " "
                             //"", "", "OBJ_REF_ID", "EQ_HOLDER_ID", "", "", "CREATION_DATE"
-                            splitter.EquipmentType = puow.GetObjectByKey<EquipmentType>(splittertypeOid);
+                            //TODO: 
+                            splitter.EquipmentType = puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "SPLITTER");// (splittertypeOid);
+                            splitter.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "EQUIPMENT");
                             splitter.ExternalSystemId = int.TryParse(row["ID"], out int splitterid) ? splitterid : 0;
                             splitter.SourceTable = splitterTable;
                             splitter.LocationName = row["NAME"];
@@ -1930,8 +1939,11 @@ make aure not olt port*/
                     : DateTime.Now;
 
                             splitter.Wirecenter = puow.Query<Wirecenter>()
-                .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_SITE_ID"]);
-
+                .FirstOrDefault(x => x.SpaceID == row["CR_SITE_ID"]);
+                            if (!string.IsNullOrWhiteSpace(row["ADDRESS_ID"]))
+                            {
+                                splitter.Address = puow.Query<Address>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ADDRESS_ID"]);
+                            }
                             puow.CommitChanges();
                             currentSuccess++;
                             ProgressMade?.Invoke(stepName,
@@ -2067,7 +2079,8 @@ make aure not olt port*/
                 {
                     foreach (var row in data)
                     {//"REGION_ID", "REGION_CNL", "REGION_NAME", "CO_ID", "CO_CODE", "CO_NAME"
-                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"WIRECENTER {string.Join(", ", row != null ? row.Select(x=>x.Value) : new string[] { "NOTHING" })}");
+                        //"REGION_ID", "REGION_CNL", "REGION_NAME", "CO_ID", "CO_CODE", "CO_NAME", "DESCRIPTION", "ID"
+                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"WIRECENTER {string.Join(", ", row != null ? row.Select(x => x.Value) : new string[] { "NOTHING" })}");
                         if (!uow.Query<Wirecenter>().Any(x => x.ExternalSystemId.ToString() == row["ID"]))
                         {
                             var wc = new Wirecenter(uow);
@@ -2087,6 +2100,7 @@ make aure not olt port*/
                                     wc.Type = uow.Query<WirecenterType>().FirstOrDefault(x => x.TypeName == row["DESCRIPTION"]);
                                 else
                                     wc.Type = uow.Query<WirecenterType>().FirstOrDefault(x => x.TypeName == UNK);
+                                wc.SpaceID = row["CO_ID"];
                                 currentSuccess++;
                                 uow.CommitChanges();
                                 ProgressMade?.Invoke(stepName,
