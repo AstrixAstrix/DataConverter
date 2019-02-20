@@ -61,12 +61,12 @@ namespace DataConverter
         private string strstate = string.Empty;
 
         private Stopwatch sw = new Stopwatch();
-        private string tbOracleConnectionStringText = string.Empty;
+        public static string tbOracleConnectionStringText = string.Empty;
         private double timeleft = 0.0;
 
         private long totalRecordsToProcess;
         private MyTuple<long, long> tuple = new MyTuple<long, long>();
-         
+
         public MainWindow()
         {
             InitializeComponent();
@@ -99,130 +99,88 @@ namespace DataConverter
         }
         async Task BeginWork()
         {
+           
             if (!string.IsNullOrWhiteSpace(TbCmsConnectionStringText) &&
                 !string.IsNullOrWhiteSpace(tbOracleConnectionStringText))
-            {
-                await Task.Factory
-                .StartNew(() =>
+            { 
+               if(BDefaults) await CreateDefaults();
+
+                if (Bwc)
                 {
-                    using (UnitOfWork uow = new UnitOfWork(Tsdl))
-                    {
-                        if (Bwc)
-                        {
-                            Wirecenters();
-                        }
+                    await Wirecenters();
+                }
+                 
+                //junctions and subscribers 
+                if (Bsub)
+                {
+                    await Addresses();
+                    await Subscribers();
+                }
 
-                        ////DevExpress.XtraEditors.XtraMessageBox.Show($"Should We Be Here YET?????");
-                        ////step 1
-                        if (!uow.Query<Wirecenter>().Any())
-                        {
-                            TotalRecordsToProcess = 1;
-                            //if no wirecenters, create one
-                            Wirecenter wc = DefaultFields.GetBusinessObjectDefault<Wirecenter>(uow,
-                                                                                               new List<Tuple<string, object>>()
-                                {
-                                    new Tuple<string, object>("LocationName", state),
-                                    new Tuple<string, object>("CLLI", state)
-                                });
-                            wc.Status = uow.Query<LocationStatus>()
-                                .FirstOrDefault(x => x.StatusName == GlobalSystemSettings.LocationStatusUnknown);
-                            uow.Save(wc);
-                        }
-
-                        uow.CommitChanges();
-                    }//end using
+                if (Bjunk)
+                {
+                    await Junctions();
+                } //ftth
 
 
-                    //junctions and subscribers 
-                    if (Bsub)
-                    {
-                        ////DevExpress.XtraEditors.XtraMessageBox.Show($"Start subscribers");
-                        Subscribers();
-                        //////DevExpress.XtraEditors.XtraMessageBox.Show($"End Subs");
-                    }
+                if (Bolt)
+                {
 
-                    if (Bjunk)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"StartJunction ");
-                        Junctions();
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"endjunctioin");
-                    } //ftth
+                    await Olts();
+                }
 
-
-                    if (Bolt)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start olt ");
-                        Olts();
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"end olt  end ends");
-                    }
-
-                    if (BoltPorts)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start olt port ");
-                        OltPorts();
-                    }
-
-                    //DevExpress.XtraEditors.XtraMessageBox.Show($"Startsplitter  ");
-
-                    if(BSplit)
-                    Splitters();
-                    //DevExpress.XtraEditors.XtraMessageBox.Show($"Start splitport ");
-                    if(BSplitPorts)
-                    SplitterPorts();
-                    if (Bcab)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"cab  ");
-
-                        Cables();
-                    }
-
-                    if (Bcon)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                        Conduits();
-                    }
-                    //  ImportCablePairs()/*)*/;
-
-                    if (Bdgroup)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                        DesignationGroups();
-                    }
-
-                    if (Bcpair)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                        CablePairs();
-                    }
-
-                    if (Bdpair)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                        DesignationPairs();
-                    }
-
-                    if (Bcpdp)
-                    {
-                        //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                        DesignationPairsCablePairLink();
-                    }
-
-                    //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                    if (Bcall)
-                    {
-                        CableCallouts();
-                    }
-                    //DevExpress.XtraEditors.XtraMessageBox.Show($"Start  ");
-                    if (BOutDPairs) OutDesignationPairs();
-                    if (BOltSplitDp) OLT_Splitter_DP();
-                    if (BAssPl) AssignmentsPrimaryLocations();
-                    if (BAssOlt) AssignmentOlt();
-                    if (BAssDPair) AssignmentDPairs();
-                    if (BAssSplitPort) AssignmentSplitPort();
-
-                    // }
-                    //want to knock this out right away, shouldn't be too many of them
-                });
+                if (BoltPorts)
+                {
+                    await OltPorts();
+                }
+                if (BSplit)
+                {
+                    await Splitters();
+                }
+                if (BSplitPorts)
+                {
+                    await SplitterPorts();
+                }
+                if (Bcab)
+                {
+                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"Entering CablesWIthSpans");
+                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"Entering CablesWIthSpans");
+                    await CablesWithSpans();
+                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"Entering Cables");                   
+                    await Cables();
+                }
+                if (Bcon)
+                {
+                    await Conduits();
+                }
+                if (Bdgroup)
+                {
+                    await DesignationGroups();
+                }
+                if (Bcpair)
+                {
+                    await CablePairs();
+                }
+                if (Bdpair)
+                {
+                    await DesignationPairs();
+                }
+                if (Bcpdp)
+                {
+                    await DesignationPairsCablePairLink();
+                }
+                if (Bcall)
+                {
+                    await CableCallouts();
+                }
+                if (BOutDPairs) await OutDesignationPairs();
+                if (BOltSplitDp) await OLT_Splitter_DP();
+                if (BAssPl) await AssignmentsPrimaryLocations();
+                if (BAssOlt) await AssignmentOlt();
+                if (BAssDPair) await AssignmentDPairs();
+                if (BAssSplitPort) await AssignmentSplitPort();
+                // });
+                //await Task.WhenAll(t);
             }
         }
 
@@ -231,26 +189,29 @@ namespace DataConverter
             try
             {
                 dbName = TbDb.Text;
-                wcTable = dbName + "." + wcTable;
-                oltTable = dbName + "." + oltTable;
-                oltPortsTable = dbName + "." + oltPortsTable;
-                splitterTable = dbName + "." + splitterTable;
-                splitterPortsTable = dbName + "." + splitterPortsTable;
-                oltSplitterDpTable = dbName + "." + oltSplitterDpTable;
-                outdPairsTable = dbName + "." + outdPairsTable;
-                assignmentPrimlocTable = dbName + "." + assignmentPrimlocTable;
-                assignmentDPairsTable = dbName + "." + assignmentDPairsTable;
-                assignmentSplitPortTable = dbName + "." + assignmentSplitPortTable;
-                assignmentOltTable = dbName + "." + assignmentOltTable;
-                addressTable = dbName + "." + addressTable;
-                cabTable = dbName + "." + cabTable;
-                conTable = dbName + ".Conduits";
-                cpTable = dbName + ".CablePairs";
-                dgroupTable = dbName + ".DesignationGroups";
-                cpdpTable = dbName + ".CABLEPAIRDESIGNATIONPAIR";
-                dpTable = dbName + ".DesignationPairs";
-                junkTable = dbName + ".JUNCTIONS";
-                subTable = dbName + ".Subscribers";
+                if (!wcTable.Contains(dbName))
+                {
+                    wcTable = dbName + "." + wcTable;
+                    oltTable = dbName + "." + oltTable;
+                    oltPortsTable = dbName + "." + oltPortsTable;
+                    splitterTable = dbName + "." + splitterTable;
+                    splitterPortsTable = dbName + "." + splitterPortsTable;
+                    oltSplitterDpTable = dbName + "." + oltSplitterDpTable;
+                    outdPairsTable = dbName + "." + outdPairsTable;
+                    assignmentPrimlocTable = dbName + "." + assignmentPrimlocTable;
+                    assignmentDPairsTable = dbName + "." + assignmentDPairsTable;
+                    assignmentSplitPortTable = dbName + "." + assignmentSplitPortTable;
+                    assignmentOltTable = dbName + "." + assignmentOltTable;
+                    addressTable = dbName + "." + addressTable;
+                    cabTable = dbName + "." + cabTable;
+                    conTable = dbName + ".Conduits";
+                    CABLEPAIR_Table = dbName + ".CablePairs";
+                    dgroupTable = dbName + ".DesignationGroups";
+                    cpdpTable = dbName + ".CABLEPAIRDESIGNATIONPAIR";
+                    dpTable = dbName + ".DesignationPairs";
+                    junkTable = dbName + ".JUNCTIONS";
+                    subTable = dbName + ".Subscribers";
+                }
                 tbOracleConnectionStringText = TbOracleConnectionString.Text;
                 TbCmsConnectionStringText = TbCmsConnectionString.Text;
                 string conn = TbCmsConnectionStringText;
@@ -317,7 +278,7 @@ namespace DataConverter
 
 
 
-        
+
 
 
         //end importloaction
@@ -353,7 +314,7 @@ namespace DataConverter
 
 
 
-        private void ProcessData(string table, string[] cols, Func<List<Dictionary<string, string>>, List<List<Dictionary<string, string>>>> parter, Action<List<Dictionary<string, string>>> partProcessor)
+        private async Task ProcessData(string table, string[] cols, Func<List<Dictionary<string, string>>, List<List<Dictionary<string, string>>>> parter, Action<List<Dictionary<string, string>>> partProcessor)
         {
             if (string.IsNullOrEmpty(table))
             {
@@ -387,7 +348,7 @@ namespace DataConverter
                     List<List<Dictionary<string, string>>> datablocks = parter(dataset);
                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"datablocks : |{datablocks?.Count}| |{datablocks?[0]?.Count}|");
                     bool res = datablocks != null && datablocks.Count > 0;
-                    res = res && DoWorkInPartitions(datablocks, partProcessor);
+                    res = res && await DoWorkInPartitions(datablocks, partProcessor);
 
                 }
             }
@@ -561,9 +522,10 @@ namespace DataConverter
 
 
         //public  Task<bool> DoWorkInPartitions<TSet, TActionInType>(TSet partlist,
-        public bool DoWorkInPartitions<TSet, TActionInType>(TSet partlist,
+        public async Task<bool> DoWorkInPartitions<TSet, TActionInType>(TSet partlist,
             Action<TActionInType>/*Action<List<Dictionary<string, string>>>*/ partaction)
                 where TSet : IEnumerable<TActionInType>/*, IList<TActionInType>*/
+                where TActionInType : IList /*, IList<TActionInType>*/
         {
             var partitionlist = partlist;
             //  ////DevExpress.XtraEditors.XtraMessageBox.Show("DoWorkInPatitions");
@@ -575,38 +537,44 @@ namespace DataConverter
             try
             {
                 if (partitionlist == null || partitionlist.Count() == 0)
-               // if (partitionlist == null || Count() == 0)
+                // if (partitionlist == null || Count() == 0)
                 {
                     return false;
                 }
-               List<TActionInType> pl = new List<TActionInType>();
+                List<TActionInType> pl = new List<TActionInType>();
                 // pl = partitionlist.RandomSubset(partitionlist.Count()).ToList();
-                if(Reverse)
+                if (Reverse)
                 {
-                    for(int i = partitionlist.Count() - 1; i >= 0; i--)
+                    for (int i = partitionlist.Count() - 1; i >= 0; i--)
                     {
                         pl.Add(partitionlist.ElementAt(i));
                     }
-                } else pl = partitionlist.ToList();
-              //  else pl = partitionlist.ToList();
+                }
+                else pl = partitionlist.ToList();
+               
+                //  else pl = partitionlist.ToList();
                 //start task for each chunk of data
-                Parallel.ForEach(pl.Cast<TActionInType>(),
+                //pl.Cast<TActionInType>().ForEach(
+                //                  (dataset) =>
+                int k = 0;
+               pl.ForEach( 
                                   (dataset) =>
                 {
+                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"PARTITION ITERATION {++k} of {pl.Count} containing ");
                     if (dataset == null)
                     {
                         MessageBox.Show(" line924                   if(dataset==null)MessageBox.Show(");
                         return;
                     }
-                      
-                        //lock(lockobj)
-                        //{
-                            tasklist.Add(Task.Factory
-                                .StartNew( () =>
-                            {
-                               partaction((TActionInType)dataset);
-                            }));
-                      //  } 
+
+                    //lock(lockobj)
+                    //{
+                    tasklist.Add(Task.Factory
+                        .StartNew(() =>
+                   {
+                       partaction((TActionInType)dataset);
+                   },TaskCreationOptions.LongRunning));
+                    //  } 
                 });
             }
             catch (Exception ex)
@@ -617,7 +585,7 @@ namespace DataConverter
             }
             try
             {
-                  Task.WaitAll(tasklist.ToArray());
+                await Task.WhenAll(tasklist.ToArray());
                 //  WaitHandle.WaitAll(listofbools.ToArray());
                 // while (listofbools.Count > 0) Task.Delay(1000);
                 return true;
@@ -631,15 +599,16 @@ namespace DataConverter
         }
 
         #region Table_view Names
-        private string addressTable = "ADDRESS";
+        private string addressTable = "AADDRESSES";
         private string assignmentDPairsTable = "ASSIGNMENT_DPAIR";
         private string assignmentOltTable = "ASSIGNMENT_OLT";
         private string assignmentPrimlocTable = "ASSIGNMENT_PRIMLOC";
         private string assignmentSplitPortTable = "ASSIGNMENT_SPLITPORT";
-        private string cabTable = "CABLES";
+        private string cabTable = "CABLESWITHOUTSPANS";
+        private string cabWithSpansTable = "CABLESWITHSPANS";
         private string conTable = "CONDUITs";
         private string cpdpTable = "CABLEPAIRDESIGNATIONPAIR";
-        private string cpTable = "CABLEPAIRS";
+        private string CABLEPAIR_Table = "CABLEPAIRS";
         private string dbName = "MSC_NCC";
         private string dgroupTable = "DESIGNATIONGROUPS";
         private string dpTable = "DESIGNATIONPAIRS";
@@ -647,7 +616,7 @@ namespace DataConverter
         private string oltPortsTable = "AOLTPORTS";
         private string oltSplitterDpTable = "AOLT_SPLITTER_DP";
         private string oltTable = "AOLTS";
-        private string outdPairsTable = "OUT_DPAIRS";
+        private string outdPairsTable = "aOUT_DPAIRS";
         private string splitterPortsTable = "ASPLITTERPORTS";
         private string splitterTable = "ASPLITTERS";
         private string subTable = "SUBSCRIBERS";
@@ -658,11 +627,15 @@ namespace DataConverter
         private string[] assignmentOltCols = { "ID", "OLTPORTID" };
         private string[] assignmentPrimlocCols = { "ID", "ASSIGNMENTCLASS", "ASSIGNMENTPORT", "STATUS", "EFFECTIVEDATE", "CIRCUITID", "SUBSCRIBERID" };
         private string[] assignmentSplitPortCols = { "ID", "SPLITTERID" };
-        private string[] cabColumns = new string[] { "CABLEID", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID", "DROPCABLE", "FORC", "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION", "INSTALLDATE" };
+        private string[] cabColumns = new string[] {
+            "FORC", "CABLEID", "COMMENTS", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID", "DROPCABLE",
+            "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION",
+            "INSTALLDATE"
+        };
         private string[] conColumns = new string[] { "ID", "STATUS", "LENGTH", "TYPE", "CODE", "MEDIA", "WORKORDER", "CABLE", "INSTALLDATE" };
         private string[] cpColumns = new string[] { "ID", "NUM", "STATUS", "CABLE" };
         private string[] cpdpColumns = new string[] { "PAIRID", "COUNT", "STATUS", "CABLEID", "TU_ID", "LOGICALCOUNTID", "DESIGNATIONGROUPID", "LOGICALCOUNT", "DESIGNATIONGROUPNAME" };        //       List<Dictionary<string, string>> cabdata = new List<Dictionary<string, string>>();                
-        private string[] dgroupColumns = new string[] { "DGID", "DGNAME", "STATUS", "CODE", "SOURCE" };
+        private string[] dgroupColumns = new string[] { "DGID", "CLASS", "DGNAME", "STATUS", "CODE", "SOURCE", "MAXCOUNT" };
         private string[] dpColumns = new string[] { "ID", "COUNT", "DGROUP" };
         private string[] junctionCols = new string[] { "OBJECTID", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY", "INSTALLDATE_NEW", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", "REFERENCENAME", "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE", "WOID", "ROUTE" };
         private string[] oltCols = { "OLT_ID", "OLT_CODE", "SUB_RACK_CODE", "RACK_CODE", "CARD_NUM", "PORT_POSITION", "CR_LOGICAL_COUNT_ID", "CR_SITE_ID", "EQUIPOBJ_REF_ID", "OLTNAME" };
@@ -671,8 +644,10 @@ namespace DataConverter
         private string[] outdPairsCols = { "SPLITTERPORTID", "DESIGNATIONPAIRID" };
         private string[] splitterCols = { "ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE" };
         private string[] splitterPortsCols = { "ID", "NAME", "STATUS", "CR_EQUIPMENT_ID" };
-        private string[] subCols = new string[] { "SUBSCRIBERID", "ACC_POINT_ID_FLEXINT", "SUBSCRIBERNAME", "SUBSCRIBERTYPE", "SUBSCRIBERSTATUS", "SUBSCRIBERCODE", "ADDRESSHOUSENUM", "ADDRESSPARCELID", "ADDRESSSTREET", "ADDRESSSTREETTYPE", "SUBSCRIBERREGIONNAME", "ADDRESSZIP", "CITY", "FULLADDY" };
-        private string[] wcCols = new string[] { "REGION_ID", "REGION_CNL", "REGION_NAME", "CO_ID", "CO_CODE", "CO_NAME" };
+        private string[] subCols = new string[] {"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"};
+        private string[] addCols = new string[] {"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"};
+        private string[] wcCols = new string[] {"REGION_ID", "REGION_CNL", "REGION_NAME", "CO_ID", "CO_CODE", "CO_NAME", "DESCRIPTION", "ID"};
+  
         #endregion
 
 
@@ -685,6 +660,12 @@ namespace DataConverter
 
         private void DXWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            AppDomain.CurrentDomain.UnhandledException += (send, X) =>
+            {
+                Console.WriteLine($"{X}\n******************************************************************************************************************\n");
+                System.Diagnostics.Debug.WriteLineIf(true, $"{X}");
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{X}");
+            };
             tbOracleConnectionStringText = TbOracleConnectionString.Text;
             TbCmsConnectionStringText = TbCmsConnectionString.Text;
             //AppDomain.CurrentDomain.FirstChanceException += (sdr, eventArgs) =>
@@ -729,11 +710,11 @@ namespace DataConverter
                     TbErrors.Text = string.Empty + currentErrors;
 
                     string send = "";
-                   
+
                     if (sender != null)
                     {
                         TbStep.Text = (string)sender;
-                       send= (string)sender;
+                        send = (string)sender;
                     }
                     int elspd = sw.Elapsed.Milliseconds;
                     ProgressBar.Value = currentIteration++;
@@ -741,7 +722,7 @@ namespace DataConverter
 
                     try
                     {
-                        if (true )
+                        if (true)
                         {
                             double milliseconds = (double)sw.ElapsedMilliseconds;
                             double max = ProgressBar.Maximum;
@@ -760,9 +741,9 @@ namespace DataConverter
                             timeleft = msleft / 1000d;
 
                             TimeR.Text = $"{sw.Elapsed.ToString().Substring(0, sw.Elapsed.ToString().IndexOf('.', 6))}\t {percent.ToString("F2")}%\t  About { TimeSpan.FromSeconds((timeleft)).ToString(@"hh\:mm\:ss")} Remaining.";
-                            ProgressBar.Content +="\n"+ TimeR.Text;
+                            ProgressBar.Content += "\n" + TimeR.Text;
                         }
-                        if (e.I!=null&&e.I.ImportStatus!=null&&e.I.ImportStatus.Contains("Exception"))
+                        if (e.I != null && e.I.ImportStatus != null && e.I.ImportStatus.Contains("Exception"))
                         {
                             AddGridItem(e.I);
                         }
@@ -1008,9 +989,15 @@ namespace DataConverter
             {
                 bool ret = false; Dispatcher.Invoke(() => ret = Chkwc.IsChecked.HasValue && Chkwc.IsChecked.Value); return ret;
             }
+        }  private bool BDefaults
+        {
+            get
+            {
+                bool ret = false; Dispatcher.Invoke(() => ret = ChkDefaults.IsChecked.HasValue && ChkDefaults.IsChecked.Value); return ret;
+            }
         }
         #endregion
-       public static int Skip = 0;
+        public static int Skip = 0;
         private void BtnSkip_Click(object sender, RoutedEventArgs e)
         {
             Skip++;
@@ -1019,6 +1006,228 @@ namespace DataConverter
         private void BtnUnSkip_Click(object sender, RoutedEventArgs e)
         {
             Skip--;
+        }
+
+        private void BtnAll_Click(object sender, RoutedEventArgs e)
+        {
+            Chkwc.IsChecked = true;
+            Chkwc.IsChecked = true;
+            ChkOlt.IsChecked = true;
+
+            ChkOlt.IsChecked = true;
+            ChkOltPorts.IsChecked = true;
+
+            ChkOltPorts.IsChecked = true;
+            ChkSplit.IsChecked = true;
+
+            ChkSplit.IsChecked = true;
+            ChkSplitPorts.IsChecked = true;
+
+            ChkSplitPorts.IsChecked = true;
+            ChkOltSplitDp.IsChecked = true;
+
+            ChkOltSplitDp.IsChecked = true;
+            ChkOutDPairs.IsChecked = true;
+
+            ChkOutDPairs.IsChecked = true;
+            ChkAssPL.IsChecked = true;
+
+            ChkAssPL.IsChecked = true;
+            ChkAssDPair.IsChecked = true;
+
+            ChkAssDPair.IsChecked = true;
+            ChkAssSplitPort.IsChecked = true;
+
+            ChkAssSplitPort.IsChecked = true;
+            ChkAssOLT.IsChecked = true;
+
+            ChkAssOLT.IsChecked = true;
+            Chkjunk.IsChecked = true;
+
+            Chkjunk.IsChecked = true;
+            Chksub.IsChecked = true;
+
+            Chksub.IsChecked = true;
+            Chkcab.IsChecked = true;
+
+            Chkcab.IsChecked = true;
+            Chkcon.IsChecked = true;
+
+            Chkcon.IsChecked = true;
+            Chkcpair.IsChecked = true;
+
+            Chkcpair.IsChecked = true;
+            Chkdgroup.IsChecked = true;
+
+            Chkdgroup.IsChecked = true;
+            Chkdpair.IsChecked = true;
+
+            Chkdpair.IsChecked = true;
+            Chkcpdp.IsChecked = true;
+
+            Chkcpdp.IsChecked = true;
+            Chkcall.IsChecked = true;
+
+            Chkcall.IsChecked = true;
+            Chkreverse.IsChecked = true;
+
+            Chkreverse.IsChecked = true;
+    
+        }
+
+        private void BtnNone_Click(object sender, RoutedEventArgs e)
+        {
+            Chkwc.IsChecked = false;
+            Chkwc.IsChecked = false;
+            ChkOlt.IsChecked = false;
+
+            ChkOlt.IsChecked = false;
+            ChkOltPorts.IsChecked = false;
+
+            ChkOltPorts.IsChecked = false;
+            ChkSplit.IsChecked = false;
+
+            ChkSplit.IsChecked = false;
+            ChkSplitPorts.IsChecked = false;
+
+            ChkSplitPorts.IsChecked = false;
+            ChkOltSplitDp.IsChecked = false;
+
+            ChkOltSplitDp.IsChecked = false;
+            ChkOutDPairs.IsChecked = false;
+
+            ChkOutDPairs.IsChecked = false;
+            ChkAssPL.IsChecked = false;
+
+            ChkAssPL.IsChecked = false;
+            ChkAssDPair.IsChecked = false;
+
+            ChkAssDPair.IsChecked = false;
+            ChkAssSplitPort.IsChecked = false;
+
+            ChkAssSplitPort.IsChecked = false;
+            ChkAssOLT.IsChecked = false;
+
+            ChkAssOLT.IsChecked = false;
+            Chkjunk.IsChecked = false;
+
+            Chkjunk.IsChecked = false;
+            Chksub.IsChecked = false;
+
+            Chksub.IsChecked = false;
+            Chkcab.IsChecked = false;
+
+            Chkcab.IsChecked = false;
+            Chkcon.IsChecked = false;
+
+            Chkcon.IsChecked = false;
+            Chkcpair.IsChecked = false;
+
+            Chkcpair.IsChecked = false;
+            Chkdgroup.IsChecked = false;
+
+            Chkdgroup.IsChecked = false;
+            Chkdpair.IsChecked = false;
+
+            Chkdpair.IsChecked = false;
+            Chkcpdp.IsChecked = false;
+
+            Chkcpdp.IsChecked = false;
+            Chkcall.IsChecked = false;
+
+            Chkcall.IsChecked = false;
+            Chkreverse.IsChecked = false;
+
+            Chkreverse.IsChecked = false;
+        }
+        
+
+        private void BtnInvert_Click(object sender, RoutedEventArgs e)
+        {
+            if (Chkwc.IsChecked.HasValue)
+            {
+                Chkwc.IsChecked = !Chkwc.IsChecked.Value;
+            }
+            if (ChkOlt.IsChecked.HasValue)
+            {
+                ChkOlt.IsChecked = !ChkOlt.IsChecked.Value;
+            }
+            if (ChkOltPorts.IsChecked.HasValue)
+            {
+                ChkOltPorts.IsChecked = !ChkOltPorts.IsChecked.Value;
+            }
+            if (ChkSplit.IsChecked.HasValue)
+            {
+                ChkSplit.IsChecked = !ChkSplit.IsChecked.Value;
+            }
+            if (ChkSplitPorts.IsChecked.HasValue)
+            {
+                ChkSplitPorts.IsChecked = !ChkSplitPorts.IsChecked.Value;
+            }
+            if (ChkOltSplitDp.IsChecked.HasValue)
+            {
+                ChkOltSplitDp.IsChecked = !ChkOltSplitDp.IsChecked.Value;
+            }
+            if (ChkOutDPairs.IsChecked.HasValue)
+            {
+                ChkOutDPairs.IsChecked = !ChkOutDPairs.IsChecked.Value;
+            }
+            if (ChkAssPL.IsChecked.HasValue)
+            {
+                ChkAssPL.IsChecked = !ChkAssPL.IsChecked.Value;
+            }
+            if (ChkAssDPair.IsChecked.HasValue)
+            {
+                ChkAssDPair.IsChecked = !ChkAssDPair.IsChecked.Value;
+            }
+            if (ChkAssSplitPort.IsChecked.HasValue)
+            {
+                ChkAssSplitPort.IsChecked = !ChkAssSplitPort.IsChecked.Value;
+            }
+            if (ChkAssOLT.IsChecked.HasValue)
+            {
+                ChkAssOLT.IsChecked = !ChkAssOLT.IsChecked.Value;
+            }
+            if (Chkjunk.IsChecked.HasValue)
+            {
+                Chkjunk.IsChecked = !Chkjunk.IsChecked.Value;
+            }
+            if (Chksub.IsChecked.HasValue)
+            {
+                Chksub.IsChecked = !Chksub.IsChecked.Value;
+            }
+            if (Chkcab.IsChecked.HasValue)
+            {
+                Chkcab.IsChecked = !Chkcab.IsChecked.Value;
+            }
+            if (Chkcon.IsChecked.HasValue)
+            {
+                Chkcon.IsChecked = !Chkcon.IsChecked.Value;
+            }
+            if (Chkcpair.IsChecked.HasValue)
+            {
+                Chkcpair.IsChecked = !Chkcpair.IsChecked.Value;
+            }
+            if (Chkdgroup.IsChecked.HasValue)
+            {
+                Chkdgroup.IsChecked = !Chkdgroup.IsChecked.Value;
+            }
+            if (Chkdpair.IsChecked.HasValue)
+            {
+                Chkdpair.IsChecked = !Chkdpair.IsChecked.Value;
+            }
+            if (Chkcpdp.IsChecked.HasValue)
+            {
+                Chkcpdp.IsChecked = !Chkcpdp.IsChecked.Value;
+            }
+            if (Chkcall.IsChecked.HasValue)
+            {
+                Chkcall.IsChecked = !Chkcall.IsChecked.Value;
+            }
+            if (Chkreverse.IsChecked.HasValue)
+            {
+                Chkreverse.IsChecked = !Chkreverse.IsChecked.Value;
+            }
         }
     } //end class
 
@@ -1063,4 +1272,3 @@ namespace DataConverter
 }
 
 
- 

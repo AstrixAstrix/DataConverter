@@ -426,7 +426,7 @@
                 Margin="10 10 10 10"
                 >
                 <ComboBoxItem  IsSelected="False">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=NNKalona</ComboBoxItem>
-                <ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc</ComboBoxItem>
+                <ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc2</ComboBoxItem>
 
                 <!--<ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=NNKalona</ComboBoxItem>
                 <ComboBoxItem >Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc</ComboBoxItem>-->
@@ -501,10 +501,11 @@
         <StackPanel Orientation="Vertical"  Margin="10,7 , 10, 7">
             <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
                 <CheckBox Name="Chkwc" IsChecked="False"    Content="Wirecenters" Margin="5"></CheckBox>
-                <CheckBox Name="ChkOlt" IsChecked="False"    Content="OLTs" Margin="5"></CheckBox>
-                <CheckBox Name="ChkOltPorts" IsChecked="False"    Content="OLTPorts" Margin="5"></CheckBox>
-                <CheckBox Name="ChkSplit" IsChecked="False"    Content="Splitters" Margin="5"></CheckBox>
-                <CheckBox Name="ChkSplitPorts" IsChecked="False"    Content="Splitter Ports" Margin="5"></CheckBox>
+                <CheckBox Name="ChkDefaults" IsChecked="True"    Content="Defaults" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOlt" IsChecked="True"    Content="OLTs" Margin="5"></CheckBox>
+                <CheckBox Name="ChkOltPorts" IsChecked="True"    Content="OLTPorts" Margin="5"></CheckBox>
+                <CheckBox Name="ChkSplit" IsChecked="True"    Content="Splitters" Margin="5"></CheckBox>
+                <CheckBox Name="ChkSplitPorts" IsChecked="True"    Content="Splitter Ports" Margin="5"></CheckBox>
                 <CheckBox Name="ChkOltSplitDp" IsChecked="True"    Content="Olt>Split>DP" Margin="5"></CheckBox>
                 <CheckBox Name="ChkOutDPairs" IsChecked="True"    Content="Out DPairs" Margin="5"></CheckBox>
                 <CheckBox Name="ChkAssPL" IsChecked="True"    Content="Assign/PL" Margin="5"></CheckBox>
@@ -530,7 +531,10 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <Button Name="BtnSkip" Click="BtnSkip_Click">Skip Current Step</Button>
+                <Button Name="BtnAll" Click="BtnAll_Click">Select All</Button>                             
+                <Button Name="BtnInvert" Click="BtnInvert_Click">Select Invert Selection</Button>                    
+                <Button Name="BtnNone" Click="BtnNone_Click">Select None</Button>      
+                <Button Name="BtnSkip" Click="BtnSkip_Click">Skip Current Step</Button> 
                 <Button Name="BtnUnSkip" Click="BtnUnSkip_Click">UnSkip Current Step</Button>
             </StackPanel>
         </StackPanel>

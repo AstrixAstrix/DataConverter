@@ -2,7 +2,7 @@
 using NewNetServices.Module.BusinessObjects.CableManagement;
 using NewNetServices.Module.BusinessObjects.Core;
 //using Oracle.DataAccess.Client;
-using Oracle.ManagedDataAccess.Client;
+using Oracle.DataAccess.Client;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -28,7 +28,7 @@ namespace DataConverter.Classes
             //"Data Source=//SERVER:PORT/INSTANCE_NAME;USER=XXX;PASSWORD=XXX"
             // string ds = $"Data Source=//kevindeveloper\\XE;USER={user};PASSWORD={password}";
             cs = $"User Id={user};Password={password};Data Source={source}";
-            NewNetServices.Module.Core.StaticHelperMethods.WriteOut(cs);
+            //NewNetServices.Module.Core.StaticHelperMethods.WriteOut(cs);
             conn = new OracleConnection(cs);// AppDomain.CurrentDomain.SetupInformation.ConfigurationFile.IndexOf("connectionString")); // C#
             conn.Open();
         }
@@ -58,7 +58,7 @@ namespace DataConverter.Classes
                 //conn.DatabaseName = "MSC_KALONA";//Open();
                 //conn.DataSource = "newnetservices.us/XE";//Open();
                 conn.ConnectionString = cs;// = "CRN";
-                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cs}");            //  conn.ChangeDatabase(dbName);
+                //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cs}");            //  conn.ChangeDatabase(dbName);
                 conn.Open();
                 //conn.ClientId = dbName;
                 //conn.ChangeDatabase(dbName);
@@ -165,7 +165,7 @@ namespace DataConverter.Classes
         {
             //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
             List<string[]> returnList = new List<string[]>();
-            
+
             cmd = new OracleCommand();
 
             cmd.Connection = conn;
@@ -175,7 +175,7 @@ namespace DataConverter.Classes
                 cmd.CommandText = $"select {selectColumns} from {table} order by {columns[orderByColumn]}".ToUpperInvariant();
             else
                 cmd.CommandText = $"select {selectColumns} from {table}".ToUpperInvariant();/* where rownum<300*/
-                                                                         // cmd.CommandText = $"select {selectColumns} from {table} where sym_name like 'PED'";/* where rownum<300*/
+                                                                                            // cmd.CommandText = $"select {selectColumns} from {table} where sym_name like 'PED'";/* where rownum<300*/
             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
             cmd.CommandType = CommandType.Text;
             int numCols = columns.Length;
@@ -203,18 +203,19 @@ namespace DataConverter.Classes
             }
 
             return returnList;
-        } public List<string[]> GetAllCmsMunsysItemsForTable(string table,  params string[] columns)
+        }
+        public List<string[]> GetAllCmsMunsysItemsForTable(string table, params string[] columns)
         {
             //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
             List<string[]> returnList = new List<string[]>();
-            
+
             cmd = new OracleCommand();
 
             cmd.Connection = conn;
             string selectColumns = string.Join(", ", columns);
-           
-                cmd.CommandText = $"select {selectColumns} from {table} where guid is null".ToUpperInvariant();/* where rownum<300*/
-                                                                         // cmd.CommandText = $"select {selectColumns} from {table} where sym_name like 'PED'";/* where rownum<300*/
+
+            cmd.CommandText = $"select {selectColumns} from {table} where guid is null".ToUpperInvariant();/* where rownum<300*/
+                                                                                                           // cmd.CommandText = $"select {selectColumns} from {table} where sym_name like 'PED'";/* where rownum<300*/
             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
             cmd.CommandType = CommandType.Text;
             int numCols = columns.Length;
@@ -242,9 +243,9 @@ namespace DataConverter.Classes
             }
 
             return returnList;
-        } 
-       // public async   Task<List<Dictionary<string, string>>> GetData(string table, params string[] columns)
-        public  List<Dictionary<string, string>> GetData(string table, params string[] columns)
+        }
+        // public async   Task<List<Dictionary<string, string>>> GetData(string table, params string[] columns)
+        public List<Dictionary<string, string>> GetData(string table, params string[] columns)
         {
             //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
             try
@@ -258,11 +259,11 @@ namespace DataConverter.Classes
                 string selectColumns = string.Join(", ", columns);
                 // cmd.CommandText = $"select GID,GUID, TYPE_NAME  from SP_NN_LOCATION where GUID is not null";
 
-                cmd.CommandText = $"select {selectColumns} from  {table}";
+                cmd.CommandText = $"select {selectColumns} from  {table} order by {columns[0]}";
                 NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
                 cmd.CommandType = CommandType.Text;
-                var dr =    cmd.ExecuteReader();
-              //  var dr = await  cmd.ExecuteReaderAsync();
+                var dr = cmd.ExecuteReader();
+                //  var dr = await  cmd.ExecuteReaderAsync();
                 if (dr.HasRows)
                 {
                     try
@@ -298,7 +299,224 @@ namespace DataConverter.Classes
                 return new List<Dictionary<string, string>>();
             }
         }
+        /// <summary>
+        /// like other mthod but uses a where statement
+        /// </summary>
+        /// <param name="table"></param>
+        /// <param name="where"></param>
+        /// <param name="columns"></param>
+        /// <returns></returns>
+        public List<Dictionary<string, string>> GetData(string table, string where, string[] columns)
+        {
+            //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
+            try
+            {
+                List<Dictionary<string, string>> returnList = new List<Dictionary<string, string>>();
+                int numCols = columns.Length;
 
-       
+                cmd = new OracleCommand();
+
+                cmd.Connection = conn;
+                string selectColumns = string.Join(", ", columns);
+                // cmd.CommandText = $"select GID,GUID, TYPE_NAME  from SP_NN_LOCATION where GUID is not null";
+
+                cmd.CommandText = $"select {selectColumns} from  {table}   {where}";
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
+                cmd.CommandType = CommandType.Text;
+                var dr = cmd.ExecuteReader();
+                //  var dr = await  cmd.ExecuteReaderAsync();
+                if (dr.HasRows)
+                {
+                    try
+                    {
+
+                        while (dr.Read())
+                        {
+                            Dictionary<string, string> innerList = new Dictionary<string, string>();
+                            for (int i = 0; i < numCols; i++)
+                            {
+                                innerList.Add(columns[i], dr.GetValue(i).ToString());
+                                // NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{innerList[columns[i]]}",false);
+                            }
+                            //     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"<-----{string.Join(" ", innerList.Select(x => x.Key + " : " + x.Value))} /---->");
+
+
+                            returnList.Add(innerList);
+                        }
+                    }
+
+
+                    catch (Exception ex)
+                    {
+                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" !!!!!!!!!!!!!!!!!!!!!{ex}");
+                    }
+                }
+                //  NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{new String('*', 100)}");
+                return returnList;
+            }
+            catch (Exception x)
+            {
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{x}");
+                return new List<Dictionary<string, string>>();
+            }
+        }
+        /// <summary>
+        /// like other mthod but uses a where statement
+        /// </summary>
+        /// <param name="table"></param>
+        /// <param name="where"></param>
+        /// <param name="columns"></param>
+        /// <returns></returns>
+        public Tuple<string, string> GetSingleSourceDestLocationsFromSpanGroupData(string cableid)
+        {
+            //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
+            try
+            {
+                cmd = new OracleCommand();
+
+                cmd.Connection = conn;
+                // cmd.CommandText = $"select GID,GUID, TYPE_NAME  from SP_NN_LOCATION where GUID is not null";
+
+                cmd.CommandText = @"select  LOCID  from 
+                                        (
+                                        select   sourcelocationid as LOCID from (
+                                        select 
+                                        SOURCELOCATIONID
+                                        from cableswithspans
+                                        where cableid = '" + cableid + @"')
+                                        union all
+                                        select destinationlocationid from(
+                                        select
+                                        DESTINATIONLOCATIONID
+                                        from cableswithspans
+                                        where cableid = '" + cableid + @"')) locs
+                                        group by locid having count(locid)= 1
+                                                        ";
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
+                cmd.CommandType = CommandType.Text;
+                var dr = cmd.ExecuteReader();
+                        List<string> reslist = new List<string>();
+                //  var dr = await  cmd.ExecuteReaderAsync();
+                if (dr.HasRows)
+                {
+                    try
+                    { 
+                        while (dr.Read())
+                        {
+                            reslist.Add(dr.GetValue(0).ToString());
+                        }
+                    }
+
+
+                    catch (Exception ex)
+                    {
+                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" !!!!!!!!!!!!!!!!!!!!!{ex}");
+                    }
+                }
+                //  NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{new String('*', 100)}");
+                if (reslist.Count > 1)
+                {
+                    return new Tuple<string, string>(reslist[0], reslist[1]);
+                }
+                else if (reslist.Count == 1)
+                {
+                    return new Tuple<string, string>(reslist[0], reslist[0]);
+                }
+                else return null; 
+            }
+            catch (Exception x)
+            {
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{x}");
+                return null;
+            }
+        }
+        public List<string> GetDistinctDataColumn(string table, string column, string where = " ")
+        {
+            //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
+            try
+            {
+                List<string> returnList = new List<string>();
+
+                cmd = new OracleCommand();
+
+                cmd.Connection = conn;
+                // cmd.CommandText = $"select GID,GUID, TYPE_NAME  from SP_NN_LOCATION where GUID is not null";
+
+                cmd.CommandText = $"select Distinct {column} from  {table} {where} order by {column}";
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
+                cmd.CommandType = CommandType.Text;
+                var dr = cmd.ExecuteReader();
+                //  var dr = await  cmd.ExecuteReaderAsync();
+                if (dr.HasRows)
+                {
+                    try
+                    {
+
+                        while (dr.Read())
+                        {
+                            returnList.Add(dr.GetValue(0).ToString());
+                        }
+                    }
+
+
+                    catch (Exception ex)
+                    {
+                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" !!!!!!!!!!!!!!!!!!!!!{ex}");
+                    }
+                }
+                //  NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{new String('*', 100)}");
+                return returnList;
+            }
+            catch (Exception x)
+            {
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{x}");
+                return new List<string>();
+            }
+        }
+        public List<string> GetListForDataColumn(string sql)
+        {
+            //only accounting for columans that are string type. Gids are ints and assumed to be FIRST COLOUMN in columns parameters. if orderby greater that 0, order by that param index
+            try
+            {
+                List<string> returnList = new List<string>();
+
+                cmd = new OracleCommand();
+
+                cmd.Connection = conn;
+                // cmd.CommandText = $"select GID,GUID, TYPE_NAME  from SP_NN_LOCATION where GUID is not null";
+
+                cmd.CommandText = sql;// $"select Distinct {column} from  {table} {where} order by {column}";
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{cmd.CommandText}");
+                cmd.CommandType = CommandType.Text;
+                var dr = cmd.ExecuteReader();
+                //  var dr = await  cmd.ExecuteReaderAsync();
+                if (dr.HasRows)
+                {
+                    try
+                    {
+
+                        while (dr.Read())
+                        {
+                            returnList.Add(dr.GetValue(0).ToString());
+                        }
+                    }
+
+
+                    catch (Exception ex)
+                    {
+                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" !!!!!!!!!!!!!!!!!!!!!{ex}");
+                    }
+                }
+                //  NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{new String('*', 100)}");
+                return returnList;
+            }
+            catch (Exception x)
+            {
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{x}");
+                return new List<string>();
+            }
+        }
+
+
     }
 }
