@@ -1,5 +1,5 @@
 ﻿<dx:DXWindow
-    x:Class="DataConverter.MainWindow"
+    x:Class="DataConverterStep2.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:custom="http://schemas.devexpress.com/winfx/2008/xaml/charts/rangecontrolclient"
@@ -13,7 +13,7 @@
     xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
     xmlns:dxp="http://schemas.devexpress.com/winfx/2008/xaml/printing"
     xmlns:dxr="http://schemas.devexpress.com/winfx/2008/xaml/ribbon"
-    xmlns:local="clr-namespace:DataConverter"
+    xmlns:local="clr-namespace:DataConverterStep2"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Width="1150"
     Height="775"
@@ -386,7 +386,7 @@
 
     <dx:DXWindow.Background>
         <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
-            <GradientStop Offset="0.997" Color="#CC363535" />
+            <GradientStop Offset="0.997" Color="#CC18B079" />
             <GradientStop Color="#CCFFFFFF" />
         </LinearGradientBrush>
     </dx:DXWindow.Background>
@@ -469,73 +469,14 @@
                 Height="28"
                 Margin="10 10 10 10"
                 Text="MSC_NCC" />
-            <dxe:ToggleSwitch
-                Name="ToggleStep"
-                CheckedStateContent="Step 2"
-                UncheckedStateContent="Step 1"
-                Grid.Row="3"
-                Grid.Column="0"
-                Grid.ColumnSpan="2"
-                ContentPlacement="{DynamicResource ToggleSwitchContentPlacement1}"
-                Margin="384,0,342,0"
-                Width="266" MinWidth="100" RenderTransformOrigin="0.5,0.5" ContentStringFormat="">
-                <dxe:ToggleSwitch.LayoutTransform>
-                    <TransformGroup>
-                        <ScaleTransform ScaleX="0.9"/>
-                        <SkewTransform/>
-                        <RotateTransform/>
-                        <TranslateTransform/>
-                    </TransformGroup>
-                </dxe:ToggleSwitch.LayoutTransform>
-                <dxe:ToggleSwitch.RenderTransform>
-                    <TransformGroup>
-                        <ScaleTransform ScaleX="1.3" ScaleY="0.95"/>
-                        <SkewTransform/>
-                        <RotateTransform/>
-                        <TranslateTransform/>
-                    </TransformGroup>
-                </dxe:ToggleSwitch.RenderTransform>
-            </dxe:ToggleSwitch>
 
         </Grid>
         <StackPanel Orientation="Vertical"  Margin="10,7 , 10, 7">
             <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
-                <CheckBox Name="ChkDefaults" IsChecked="True"    Content="Defaults" Margin="5"></CheckBox>
-                <CheckBox Name="Chkwc" IsChecked="True"    Content="Wirecenters" Margin="5"></CheckBox>
-                <CheckBox Name="ChkOlt" IsChecked="True"    Content="OLTs" Margin="5"></CheckBox>
-                <CheckBox Name="ChkOltPorts" IsChecked="True"    Content="OLTPorts" Margin="5"></CheckBox>
-                <CheckBox Name="ChkSplit" IsChecked="True"    Content="Splitters" Margin="5"></CheckBox>
-                <CheckBox Name="ChkSplitPorts" IsChecked="True"    Content="Splitter Ports" Margin="5"></CheckBox>
-                <CheckBox Name="Chksub" IsChecked="True" Content="Addresses &amp; Subscribers" Margin="5"></CheckBox>
-                <CheckBox Name="Chkjunk" IsChecked="True"    Content="Junctions" Margin="5"></CheckBox>
-                <CheckBox Name="ChkAssPL" IsChecked="True"    Content="Assignments &amp; Primary locations" Margin="5"></CheckBox>           
-            </StackPanel>
-            <StackPanel Orientation="Horizontal"  Margin="10,7 , 10, 7">
                 <StackPanel  Orientation="Horizontal"  Margin="10,7 , 10, 7">
-                    <CheckBox Name="ChkcabWO" IsChecked="True" Content="Cable WithOUT" Margin="5"></CheckBox>
-                    <CheckBox Name="ChkcabW" IsChecked="True" Content="Cable With" Margin="5"></CheckBox>
-                    <CheckBox Name="Chkcpair" IsChecked="True" Content="CPairs" Margin="5"></CheckBox>
-                    <CheckBox Name="Chkdgroup" IsChecked="True" Content="DGroups" Margin="5"></CheckBox>
-                    <CheckBox Name="Chkdpair" IsChecked="True" Content="DPairs" Margin="5"></CheckBox>
-                    <CheckBox Name="Chkcon" IsChecked="True" Content="Conduit" Margin="5"></CheckBox>
-                    <CheckBox Name="Chkcpdp" IsChecked="True" Content="CPDP" Margin="5"></CheckBox>
-                    <CheckBox Name="Chkcall" IsChecked="True" Content="Callouts" Margin="5"></CheckBox>
-                </StackPanel>
-                <StackPanel  Orientation="Horizontal"  Margin="10,7 , 10, 7">
-                    <CheckBox Name="ChkOltSplitDp" IsChecked="True"    Content="Olt>Split>DP" Margin="5"></CheckBox>
-                    <CheckBox Name="ChkOutDPairs" IsChecked="True"    Content="Out DPairs" Margin="5"></CheckBox>
-                    <CheckBox Name="ChkAssOLT" IsChecked="True"    Content="Assign OLT" Margin="5"></CheckBox>
-                    <CheckBox Name="ChkAssDPair" IsChecked="True"    Content="Assign DPair" Margin="5"></CheckBox>
-                    <CheckBox Name="ChkAssSplitPort" IsChecked="True"    Content="Assign Split Port" Margin="5"></CheckBox>
                     <CheckBox Name="Chkreverse" IsChecked="False" Content="Reverse?" Margin="50,5,5,5"></CheckBox>
 
                 </StackPanel>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <Button Name="BtnAll" Click="BtnAll_Click">Select All</Button>                             
-                <Button Name="BtnInvert" Click="BtnInvert_Click">Select Invert Selection</Button>                    
-                <Button Name="BtnNone" Click="BtnNone_Click">Select None</Button>      
-              
             </StackPanel>
         </StackPanel>
         <dxg:GridControl
@@ -691,7 +632,7 @@
 
             <TextBlock   Grid.Row="4" Grid.Column="0" Margin="10  0 10 0" Name="tbSuccessfulCallouts" Text="0"   />
             <TextBlock Grid.Row="4" Grid.Column="2" Margin="10  0 10 0" Name="tbErrorsCallouts" Text="0" />
-            <TextBlock Grid.Row="4" Grid.Column="1" Margin="10  0 10 0" Name="tbLblCallouts" Text="Callouts"/>
+            <TextBlock Grid.Row="4" Grid.Column="1" Margin="10  0 10 0" Name="tbLblCallouts" Text=""/>
 
 
 

@@ -20,331 +20,130 @@ namespace DataConverter.Classes
 {
     public static class ImporterHelper
     {
-        public static void ProcessCablePair(UnitOfWork uow,
-                                            Dictionary<string, string> row,
-                                            string cpTable,
-                                            ref int successfulCpairs,
-                                            ref int errorsCpairs,
-                                            EventHandler<ProgressMadeEventArgs> progressMade)
-        {
-            if (!uow.Query<PhysicalPair>().Any(x => x.ExternalSystemId.ToString() == row["ID"]))
-            {
-                object locker = new object();
-                try
-                {
-
-                    if (!string.IsNullOrWhiteSpace(row["CABLE"])) //look up cable we probably omorted already//{
-                    {
-                        PhysicalPair cpair = new PhysicalPair(uow);
-
-                        cpair.ExternalSystemId = int.Parse(row["ID"]);
-                        cpair.SourceTable = cpTable; // int.Parse(row["LOCATIONID"]);  
-                        cpair.Status = !string.IsNullOrWhiteSpace(row["STATUS"]) ? DefaultFields.GetBusinessObjectDefault<CablePairStatus>(uow, "StatusName", row["STATUS"]) : DefaultFields.GetBusinessObjectDefault<CablePairStatus>(uow, "StatusName", "UNKNOWN");
-                        cpair.PairNumber = int.Parse(row["NUM"]);
-                        try
-                        {
-                            PhysicalCable cable = uow.Query<PhysicalCable>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CABLE"]);
-                            if (cable != null)
-                            {
-                                //store guid and add to cable afterwards to avoid locking issues
-                                //lock (locker)
-                                //{
-                                //    cable_cpairs_List.Add(new Tuple<Guid, Guid>(cable.Oid, cpair.Oid));
-                                cable.CablePairs.Add(cpair);
-                                cpair.Cable = cable;
-                                //}
-                                uow.CommitChanges();
-                                successfulCpairs++;
-                                progressMade?.Invoke("Cable Pairs",
-                                                     new ProgressMadeEventArgs(new ImportedItem()
-                                                     {
-                                                         Guid = cpair.Oid.ToString(),
-                                                         Id = cpair.ExternalSystemId?.ToString(),
-                                                         SourceTable = cpair.SourceTable,
-                                                         ImportStatus = "Success",
-                                                         RecordStatus = cpair.Status?.ToString(),
-                                                         Type = "CablePair"
-                                                     }));
-                            }
-                            else throw new Exception($"Cannot Find cable '{row["CABLE"]}' for pair '{cpair.ExternalSystemId}'");
-                            // }
-                        }
-                        catch (Exception ex)
-                        {
-                            errorsCpairs++;
-                            StaticHelperMethods.WriteOut(@"
-                                uow.RollbackTransaction();
-                                puow.CommitChanges();
-                                errorsCpairs++\n" + $"{string.Join(", ", row)}" +
-                                $"\n{ex}" +
-                                $"\n{ex.StackTrace}" +
-                                $"\n{ex.Source}" +
-                                $"\n{ex.TargetSite}");
-                        }
-                    }
-                    else
-                    {
-                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut(@"  uow.RollbackTransaction();
-                            throw new Exception($""Cable not found with id: {row[""CABLE ""]}"); //{
-                                                                                                 //  uow.RollbackTransaction();
-                        throw new Exception($"Cable not found with id: {row["CABLE "]}"); //{
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    errorsCpairs++;
-                    progressMade?.Invoke("Cable Pairs",
-                                         new ProgressMadeEventArgs(new ImportedItem()
-                                         {
-                                             SourceTable = cpTable,
-                                             ImportStatus = "Exception" + $"\t{ex.Message}",
-                                             Type = "Exception"
-                                         }));
-                    StaticHelperMethods.WriteOut($"{ex}");
-                }
-            } //end if exists
-            else
-            {
-                progressMade?.Invoke(null,
-                                     new ProgressMadeEventArgs(new ImportedItem()
-                                     {
-                                         SourceTable = cpTable,
-                                         ImportStatus = "OK",
-                                         Type = $"Already Exists {row["ID"]}"
-                                     }));
-            }
-        }
-
-        public static Guid locUnknown = Guid.Empty;
-        public static Guid wireCneterUnkown = Guid.Empty;
-        public static Guid copperClassOid = Guid.Empty;
-        public static Guid fiberClassOid = Guid.Empty;
         //public static Guid cblMediaUnknOid = Guid.Empty;
         //public static Guid conMediaUnknOid = Guid.Empty;
         public static Guid cblSize1Oid = Guid.Empty;
-        public static Guid conSize1Oid = Guid.Empty;
-        public static Guid cblTypeUnkOid = Guid.Empty;
-        public static Guid conTypeUnkOid = Guid.Empty;
         public static Guid cblStatusUnkOid = Guid.Empty;
+        public static Guid cblTypeUnkOid = Guid.Empty;
+        public static Guid conSize1Oid = Guid.Empty;
         public static Guid conStatusUnkOid = Guid.Empty;
+        public static Guid conTypeUnkOid = Guid.Empty;
+        public static Guid copperClassOid = Guid.Empty;
         public static List<Tuple<Guid, Guid>> DestCableList = new List<Tuple<Guid, Guid>>();
-        public static List<Tuple<Guid, Guid>> SourceConduitList = new List<Tuple<Guid, Guid>>();
         public static List<Tuple<Guid, Guid>> DestConduitList = new List<Tuple<Guid, Guid>>();
+        public static Guid fiberClassOid = Guid.Empty;
 
-        public static void ProcessCable(UnitOfWork puow, Dictionary<string, string> row, string cabTable, EventHandler<ProgressMadeEventArgs> progressMade, string stepName)
+        public static Guid locUnknown = Guid.Empty;
+        public static List<Tuple<Guid, Guid>> SourceConduitList = new List<Tuple<Guid, Guid>>();
+        public static Guid wireCneterUnkown = Guid.Empty;
+
+        public static Junction CreateJunction(Dictionary<string, string> row, UnitOfWork uow, string table)
         {
-            Stopwatch sw = Stopwatch.StartNew();
-            const string tempfile = @"C:/Stopwatch/times.bat";
-            //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"",true,true,tempfile);
+            /*"OBJECTID", "INSTALLDATE_NEW", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY",
+             * "INSTALLDATE", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", 
+             * "REFERENCENAME", "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE",
+             * "WOID", "ROUTE", "FINALTYPE", "IDLINK" */
             try
             {
+                Junction junk = new Junction(uow);
+                junk.ExternalSystemId = int.Parse(row["ACCESSPOINTID"]);
+                uow.CommitChanges();
+                junk.SourceTable = table;
+                junk.SourceType = row["FINALTYPE"];
+                junk.LocationName = !string.IsNullOrWhiteSpace(row["ENTITYNAME"]) ? row["ENTITYNAME"] : "<EMPTY>";
 
-                //using (UnitOfWork puow =new UnitOfWork(puow.DataLayer))
-                //{
-                var sw3 = Stopwatch.StartNew();
-                //puow.BeginTransaction();
+                junk.WorkOrder = !string.IsNullOrWhiteSpace(row["WOID"])
+                    ? uow.Query<WorkOrder>().FirstOrDefault(x => x.OrderNumber == row["WOID"])
+                    : null;
+                // List<string> subtypes = odw.GetListForDataColumn(@"select distinct subtype from junctions where subtype is not null and subtype not like 'UNK' and entitytype not like 'POLE'");
+                //List<string> types = odw.GetListForDataColumn(@"select distinct entitytype from junctions where subtype is null or subtype like 'UNK' and entitytype not like 'POLE'");
+                if (!string.IsNullOrWhiteSpace(row["FINALTYPE"]))
+                {
+                    junk.Type = uow.Query<JunctionType>().FirstOrDefault(x => x.TypeName == row["FINALTYPE"]);
+                }
+                junk.Route = !string.IsNullOrWhiteSpace(row["ROUTE"])
+                    ? uow.Query<Route>().FirstOrDefault(x => x.Name == row["ROUTE"])
+                    : null;
+                junk.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
+                    ? uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == row["STATUS"])
+                    : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == MainWindow.UNK);
 
-                //Location source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
-                //Location destination = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row[""]);
-                //if (source == null)
-                //    source = DefaultFields.GetBusinessObjectDefault<Location>(puow, "LocationName", "UNKNOWN");
-                //if (destination == null) destination = DefaultFields.GetBusinessObjectDefault<Location>(puow, "LocationName", "UNKNOWN");
+                junk.Wirecenter = uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+
+                //junk.Comment = $"APId:{row["APID"] } ";
+
+                junk.Boundary = !string.IsNullOrWhiteSpace(row["CITY"]) ? uow.Query<Boundary>().FirstOrDefault(x => x.Name == row["CITY"]) : null; //{
+                if (!string.IsNullOrWhiteSpace(row["INSTALLDATE_NEW"]) && DateTime.TryParse(row["INSTALLDATE_NEW"], out DateTime dt))
+                    junk.DatePlaced = dt;
                 try
                 {
-                    PhysicalCable cable = new PhysicalCable(puow);
-                    cable.Source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
-
-                    cable.Destination =
-                        puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
-
-                    cable.ExternalSystemId = int.Parse(row["CABLEID"]);
-                    cable.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.ExternalSystemId.ToString() == "UNKNOWN");
-                    cable.WorkOrder = !string.IsNullOrWhiteSpace(row["WORKORDERID"])
-                        ? puow.Query<WorkOrder>().FirstOrDefault(x =>
-                            x.ExternalSystemId.ToString() == row["WORKORDERID"])
-                        : null;
-                    cable.SourceTable = cabTable; // int.Parse(row["LOCATIONID"]);                                
-                    cable.Status = (!string.IsNullOrWhiteSpace(row["CABLESTATUS"])) ?
-                        puow.Query<CableStatus>().FirstOrDefault(x => x.StatusName == row["CABLESTATUS"]) : null;
-                    cable.Route = (!string.IsNullOrWhiteSpace(row["CABLEROUTE"])) ?
-                        puow.Query<Route>().FirstOrDefault(x => x.Name == row["CABLEROUTE"]) : null;
-                    //dest_cable_List.Add(new Tuple<Guid,Guid>(Destination != null ? Destination.Oid : Guid.Empty, cable.Oid));
-                    //source_cable_List.Add(new Tuple<Guid,Guid>(Source != null ? Source.Oid : Guid.Empty, cable.Oid));
-
-                    cable.Information = !string.IsNullOrWhiteSpace(row["DESCRIPTION"])
-                        ? row["DESCRIPTION"]
-                        : "";
-                    cable.Length = !string.IsNullOrWhiteSpace(row["CABLELENGTH"]) &&
-                                     double.TryParse(row["CABLELENGTH"], out double l)
-                         ? l
-                         : 0;
-
-                    cable.Class = (!string.IsNullOrWhiteSpace(row["FORC"])) ? puow.Query<CableClass>().FirstOrDefault(x => x.TypeName == row["FORC"]) : null;
-                    cable.Size = (!string.IsNullOrWhiteSpace(row["CABLESIZE"])) &&
-                                 int.TryParse(row["CABLESIZE"], out int sz)
-                        ? puow.Query<CableSize>()
-                            .FirstOrDefault(x => x.Count == sz)
-                        : null;
-
-                    cable.Media = puow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "Media");
-
-                    cable.Type = row["DROPCABLE"] == "1"
-                        ? puow.Query<CableType>().FirstOrDefault(x => x.TypeName == "DROPCABLE")
-                          : !string.IsNullOrWhiteSpace(row["CABLETYPE"])
-                        ? puow.Query<CableType>().FirstOrDefault(x => x.TypeName == row["CABLETYPE"])
-                        : puow.Query<CableType>().FirstOrDefault(x => x.TypeName == MainWindow.UNK);
-
-                    if (!string.IsNullOrWhiteSpace(row["INSTALLDATE"]) && DateTime.TryParse(row["INSTALLDATE"], out DateTime dt))
-                        cable.DatePlaced = dt;
-                    cable.CableName = cable.GeneratedName; //{
-                    // puow.CommitTransaction(); 
-                    puow.CommitChanges();
-                    //  puow.CommitTransaction();
-
-                    MainWindow.currentSuccess++;
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"AfterCreation {sw3.Elapsed}", true, true, tempfile);
-                    progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
-                    {
-                        ImportStatus = "Success",
-                        Type = "Cable"
-                    }));
+                    uow.CommitChanges();
                 }
-                catch (Exception ex)
+                catch //(Exception ex)
                 {
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex.Message}\n{ex.StackTrace}");
-                    //puow.RollbackTransaction();
-                    //puow.RollbackTransaction();
                     throw;
                 }
-
+                return junk;
             }
             catch (Exception ex)
             {
-                MainWindow.currentErrors++;
-                progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
-                {
-                    SourceTable = cabTable,
-                    ImportStatus = "Exception" + $"\t{ex.Message}",
-                    Type = "Exception"
-                }));
-                StaticHelperMethods.WriteOut($"{ex}");
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
+                return null;// System.Threading.Tasks.Task.FromResult(null); ;
             }
-            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"CableMethodTime:\t{sw.Elapsed}", true, true, tempfile);
         }
 
-        public static string GetAllUntilNumber(string str)
+        public static Pole CreatePole(Dictionary<string, string> row, UnitOfWork uow, string table)
         {
-            string ret = "";
-            int i = 0;
-            foreach (char c in str)
-            {
-                //if it starts with a number, return the full string
-                if (i++ == 0 && char.IsNumber(c)) return str;
-                if (char.IsNumber(c)) { ret += c; }
-            }
-            return ret;
-        }
-        // ImporterHelper.ProcessCable(cable, row, cabTable, ProgressMade, stepName);
-        public static async Task<bool> ProcessCable(PhysicalCable cable, Dictionary<string, string> row, string cabTable, EventHandler<ProgressMadeEventArgs> progressMade, string stepName)
-        {
-            Stopwatch sw = Stopwatch.StartNew();
-            const string tempfile = @"C:/Stopwatch/times.bat";
-            //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"",true,true,tempfile);
+            /*"JUNCTIONS"  "OBJECTID", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY",
+            "INSTALLDATE_NEW", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", "REFERENCENAME",
+            "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE", "WOID", "ROUTE" */
+
+            //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
             try
             {
-                Session puow = cable.Session;
+                Pole pole = new Pole(uow);
+                pole.ExternalSystemId = int.Parse(row["ACCESSPOINTID"]);
+                uow.CommitChanges();
+                pole.SourceTable = table;
+                pole.SourceType = row["ENTITYTYPE"];
+                pole.LocationName = !string.IsNullOrWhiteSpace(row["ENTITYNAME"]) ? row["ENTITYNAME"] : "<EMPTY>";
+                pole.WorkOrder = !string.IsNullOrWhiteSpace(row["WOID"]) ? uow.Query<WorkOrder>().FirstOrDefault(x => x.OrderNumber == row["WOID"]) : null;
 
-                var sw3 = Stopwatch.StartNew();
+                if (!uow.Query<PoleType>().Any(x => x.TypeName == "POLE"))
+                {
+                    var pt = new PoleType(uow) { TypeName = "POLE" };
+                    uow.CommitChanges();
+                }
+
+                pole.Type = uow.Query<PoleType>().FirstOrDefault(x => x.TypeName == "POLE");
+                pole.Status = !string.IsNullOrWhiteSpace(row["STATUS"]) ? uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == row["STATUS"])
+                    : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == MainWindow.UNK);
+                pole.Comment = $"APId:{row["APID"] } ";
+                pole.Wirecenter = uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+
+                pole.Boundary = !string.IsNullOrWhiteSpace(row["CITY"])
+                    ? uow.Query<Boundary>().FirstOrDefault(x => x.Name == row["CITY"])
+                    : uow.Query<Boundary>().FirstOrDefault(x => x.Name == row["CITY"]);
+
+
+                if (!string.IsNullOrWhiteSpace(row["INSTALLDATE_NEW"]) &&
+                    DateTime.TryParse(row["INSTALLDATE_NEW"], out DateTime dt))
+                    pole.DatePlaced = dt;
                 try
                 {
-                    var dummy = await Task.FromResult(3);
-                    if (cable.Source == null)
-                        cable.Source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
-                    if (cable.Destination == null)
-                        cable.Destination = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
-                    // puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
-
-                    cable.ExternalSystemId = int.Parse(row["CABLEID"]);
-                    cable.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
-                    cable.WorkOrder = !string.IsNullOrWhiteSpace(row["WORKORDERID"])
-                        ? puow.Query<WorkOrder>().FirstOrDefault(x =>
-                            x.ExternalSystemId.ToString() == row["WORKORDERID"] || x.OrderNumber == row["WORKORDERID"])
-                        : null;
-                    cable.SourceTable = cabTable; // int.Parse(row["LOCATIONID"]);                                
-                    cable.Status = (!string.IsNullOrWhiteSpace(row["CABLESTATUS"])) ?
-                        puow.Query<CableStatus>().FirstOrDefault(x => x.StatusName == row["CABLESTATUS"]) : null;
-                    cable.Route = (!string.IsNullOrWhiteSpace(row["CABLEROUTE"])) ?
-                        puow.Query<Route>().FirstOrDefault(x => x.Name == row["CABLEROUTE"]) : null;
-                    //dest_cable_List.Add(new Tuple<Guid,Guid>(Destination != null ? Destination.Oid : Guid.Empty, cable.Oid));
-                    //source_cable_List.Add(new Tuple<Guid,Guid>(Source != null ? Source.Oid : Guid.Empty, cable.Oid));
-
-                    cable.Comment = !string.IsNullOrWhiteSpace(row["COMMENTS"])
-                        ? row["COMMENTS"]
-                        : "";
-                    if (0 == cable.Length)
-                    {
-                        cable.Length = !string.IsNullOrWhiteSpace(row["CABLELENGTH"]) &&
-                                           double.TryParse(row["CABLELENGTH"], out double l)
-                               ? l
-                               : 0;
-                    }
-
-                    cable.Class = (!string.IsNullOrWhiteSpace(row["FORC"])) ? puow.Query<CableClass>().FirstOrDefault(x => x.TypeName == row["FORC"]) : null;
-                    cable.Size = (!string.IsNullOrWhiteSpace(row["CABLESIZE"])) &&
-                                 int.TryParse(row["CABLESIZE"], out int sz)
-                        ? cable.Class?.CableSizes.FirstOrDefault(x => x.Count == sz)
-                        : null;
-
-                    cable.Media = puow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "Media");
-
-                    string typestr = MainWindow.UNK;
-                    if (!string.IsNullOrWhiteSpace(row["CABLETYPE"]))
-                    {
-                        typestr = GetAllUntilNumber(row["CABLETYPE"]);
-                        cable.Class?.CableTypes.FirstOrDefault(x => x.TypeName == typestr);
-
-                    }
-                    if (row["DROPCABLE"] == "1")
-                        cable.FlexText = "DROPCABLE";
-
-
-                    if (!string.IsNullOrWhiteSpace(row["INSTALLDATE"]) && DateTime.TryParse(row["INSTALLDATE"], out DateTime dt))
-                        cable.DatePlaced = dt;
-                    cable.CableName = cable.GeneratedName; //{ 
-                    puow.Save(cable);
-
-                    MainWindow.currentSuccess++;
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"AfterCreation {sw3.Elapsed}", true, true, tempfile);
-                    progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
-                    {
-                        ImportStatus = "Success",
-                        Type = "Cable"
-                    }));
-                    return true;
+                    uow.CommitChanges();
                 }
-                catch (Exception ex)
+                catch //(Exception ex)
                 {
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex.Message}\n{ex.StackTrace}");
-
                     throw;
                 }
-
+                return pole;
             }
             catch (Exception ex)
             {
-                MainWindow.currentErrors++;
-                progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
-                {
-                    SourceTable = cabTable,
-                    ImportStatus = "Exception" + $"\t{ex.Message}",
-                    Type = "Exception"
-                }));
-                StaticHelperMethods.WriteOut($"{ex}");
-                return false;
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
             }
-            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"CableMethodTime:\t{sw.Elapsed}", true, true, tempfile);
-            return false;
+            return null;
         }
 
         public static async Task<List<PhysicalPair>> DoCablePairs(UnitOfWork uow, int? externalSystemId, string table, string[] columns)
@@ -400,26 +199,284 @@ namespace DataConverter.Classes
             return await System.Threading.Tasks.Task.FromResult(ret);
         }
 
+
+
+        //address
+        public static bool ProcessAddress(UnitOfWork uow, Dictionary<string, string> row, string tbl, EventHandler<ProgressMadeEventArgs> progressMade
+  , string stepName)
+        {
+            //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
+            //make sure not imported already
+
+            try
+            {
+                //"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "SUBID","CODE"
+                //" ", " ", " ", " ", " ", " ", " "
+
+                //see ifaddress alrady exists
+                if (int.TryParse(row["ADDYID"], out int id) && !uow.Query<NewNetServices.Module.BusinessObjects.CableManagement.Address>()
+                    .Any(x => x.ExternalSystemId == id))
+                {
+                    Address addy = new Address(uow);
+                    addy.ExternalSystemId = id;
+                    addy.SourceTable = tbl; // int.Parse(row["LOCATIONID"]); 
+                    addy.FlexText = row["FLEXTEXT"];
+                    addy.SourceTable = tbl;
+                    addy.Street = row["STREET"];
+                    addy.City = !string.IsNullOrWhiteSpace(row["CITY"]) ? row["CITY"] + " " : "";
+
+                    if (!string.IsNullOrWhiteSpace(row["STATE"]))
+                        addy.StateProvince = uow.Query<NewNetServices.Module.BusinessObjects.CableManagement.State>().FirstOrDefault(x => x.ShortName == row["STATE"]);
+
+
+                    uow.CommitChanges();
+                    MainWindow.currentSuccess++;
+                    progressMade?.Invoke(stepName,
+                                         new ProgressMadeEventArgs(new ImportedItem()
+                                         {
+                                             Guid = addy.Oid.ToString(),
+                                             Id = "" + id,
+                                             SourceTable = tbl,
+                                             ImportStatus = "Success",
+                                             Type = "Address",
+                                         }));
+                }
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                StaticHelperMethods.WriteOut($"{ex}");
+                // return false;
+                MainWindow.currentErrors++;
+                progressMade?.Invoke(stepName,
+                                     new ProgressMadeEventArgs(new ImportedItem()
+                                     {
+                                         SourceTable = tbl,
+                                         ImportStatus = "Exception" + $"\t{ex.Message}",
+                                         Type = "Exception"
+                                     }));
+                return false;
+            }
+
+
+        }
+
+        //public static void ProcessCable(UnitOfWork puow, Dictionary<string, string> row, string cabTable, EventHandler<ProgressMadeEventArgs> progressMade, string stepName)
+        //{
+        //    Stopwatch sw = Stopwatch.StartNew();
+        //    const string tempfile = @"C:/Stopwatch/times.bat";
+        //    //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"",true,true,tempfile);
+        //    try
+        //    {
+
+        //        //using (UnitOfWork puow =new UnitOfWork(puow.DataLayer))
+        //        //{
+        //        var sw3 = Stopwatch.StartNew();
+        //        //puow.BeginTransaction();
+
+        //        //Location source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
+        //        //Location destination = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row[""]);
+        //        //if (source == null)
+        //        //    source = DefaultFields.GetBusinessObjectDefault<Location>(puow, "LocationName", "UNKNOWN");
+        //        //if (destination == null) destination = DefaultFields.GetBusinessObjectDefault<Location>(puow, "LocationName", "UNKNOWN");
+        //        try
+        //        {
+        //            PhysicalCable cable = new PhysicalCable(puow);
+        //            cable.Source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
+
+        //            cable.Destination =
+        //                puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
+
+        //            cable.ExternalSystemId = int.Parse(row["CABLEID"]);
+        //            cable.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName.ToString() == "UNKNOWN");
+        //            cable.WorkOrder = !string.IsNullOrWhiteSpace(row["WORKORDERID"])
+        //                ? puow.Query<WorkOrder>().FirstOrDefault(x =>
+        //                    x.ExternalSystemId.ToString() == row["WORKORDERID"])
+        //                : null;
+        //            cable.SourceTable = cabTable; // int.Parse(row["LOCATIONID"]);                                
+        //            cable.Status = (!string.IsNullOrWhiteSpace(row["CABLESTATUS"])) ?
+        //                puow.Query<CableStatus>().FirstOrDefault(x => x.StatusName == row["CABLESTATUS"]) : null;
+        //            cable.Route = (!string.IsNullOrWhiteSpace(row["CABLEROUTE"])) ?
+        //                puow.Query<Route>().FirstOrDefault(x => x.Name == row["CABLEROUTE"]) : null;
+        //            //dest_cable_List.Add(new Tuple<Guid,Guid>(Destination != null ? Destination.Oid : Guid.Empty, cable.Oid));
+        //            //source_cable_List.Add(new Tuple<Guid,Guid>(Source != null ? Source.Oid : Guid.Empty, cable.Oid));
+
+        //            cable.Information = !string.IsNullOrWhiteSpace(row["DESCRIPTION"])
+        //                ? row["DESCRIPTION"]
+        //                : "";
+        //            cable.Length = !string.IsNullOrWhiteSpace(row["CABLELENGTH"]) &&
+        //                             double.TryParse(row["CABLELENGTH"], out double l)
+        //                 ? l
+        //                 : 0;
+
+        //            cable.Class = (!string.IsNullOrWhiteSpace(row["FORC"])) ? puow.Query<CableClass>().FirstOrDefault(x => x.TypeName == row["FORC"]) : null;
+        //            cable.Size = (!string.IsNullOrWhiteSpace(row["CABLESIZE"])) &&
+        //                         int.TryParse(row["CABLESIZE"], out int sz)
+        //                ? puow.Query<CableSize>()
+        //                    .FirstOrDefault(x => x.Count == sz)
+        //                : null;
+
+        //            cable.Media = puow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "Media");
+
+
+        //            string ctype = GetAllUntilNumber(row["CABLETYPE"]);
+        //            cable.Type = row["DROPCABLE"] == "1"
+        //                ? puow.Query<CableType>().FirstOrDefault(x => x.TypeName == "DROPCABLE")
+        //                  : !string.IsNullOrWhiteSpace(ctype)
+        //                ? puow.Query<CableType>().FirstOrDefault(x => x.TypeName == ctype)
+        //                : puow.Query<CableType>().FirstOrDefault(x => x.TypeName == MainWindow.UNK);
+
+        //            if (!string.IsNullOrWhiteSpace(row["INSTALLDATE"]) && DateTime.TryParse(row["INSTALLDATE"], out DateTime dt))
+        //                cable.DatePlaced = dt;
+        //            cable.CableName = cable.GeneratedName; //{
+        //            // puow.CommitTransaction(); 
+        //            puow.CommitChanges();
+        //            //  puow.CommitTransaction();
+
+        //            MainWindow.currentSuccess++;
+        //            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"AfterCreation {sw3.Elapsed}", true, true, tempfile);
+        //            progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
+        //            {
+        //                ImportStatus = "Success",
+        //                Type = "Cable"
+        //            }));
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex.Message}\n{ex.StackTrace}");
+        //            //puow.RollbackTransaction();
+        //            //puow.RollbackTransaction();
+        //            throw;
+        //        }
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MainWindow.currentErrors++;
+        //        progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
+        //        {
+        //            SourceTable = cabTable,
+        //            ImportStatus = "Exception" + $"\t{ex.Message}",
+        //            Type = "Exception"
+        //        }));
+        //        StaticHelperMethods.WriteOut($"{ex}");
+        //    }
+        //    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"CableMethodTime:\t{sw.Elapsed}", true, true, tempfile);
+        //}
+        //// ImporterHelper.ProcessCable(cable, row, cabTable, ProgressMade, stepName);
+        public static async Task<bool> ProcessCable(PhysicalCable cable, Dictionary<string, string> row, string cabTable, EventHandler<ProgressMadeEventArgs> progressMade, string stepName)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            const string tempfile = @"C:/Stopwatch/times.bat";
+            //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"",true,true,tempfile);
+            try
+            {
+                Session puow = cable.Session;
+
+                var sw3 = Stopwatch.StartNew();
+                try
+                {
+                    var dummy = await Task.FromResult(3);
+                    if (cable.Source == null)
+                        cable.Source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
+                    if (cable.Destination == null)
+                        cable.Destination = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
+                    // puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
+
+                    cable.ExternalSystemId = int.Parse(row["CABLEID"]);
+                    cable.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+                    cable.WorkOrder = !string.IsNullOrWhiteSpace(row["WORKORDERID"])
+                        ? puow.Query<WorkOrder>().FirstOrDefault(x =>
+                            x.ExternalSystemId.ToString() == row["WORKORDERID"] || x.OrderNumber == row["WORKORDERID"])
+                        : null;
+                    cable.SourceTable = cabTable; // int.Parse(row["LOCATIONID"]);                                
+                    cable.Status = (!string.IsNullOrWhiteSpace(row["CABLESTATUS"])) ?
+                        puow.Query<CableStatus>().FirstOrDefault(x => x.StatusName == row["CABLESTATUS"]) : null;
+                    cable.Route = (!string.IsNullOrWhiteSpace(row["CABLEROUTE"])) ?
+                        puow.Query<Route>().FirstOrDefault(x => x.Name == row["CABLEROUTE"]) : null;
+                    //dest_cable_List.Add(new Tuple<Guid,Guid>(Destination != null ? Destination.Oid : Guid.Empty, cable.Oid));
+                    //source_cable_List.Add(new Tuple<Guid,Guid>(Source != null ? Source.Oid : Guid.Empty, cable.Oid));
+
+                    cable.Comment = !string.IsNullOrWhiteSpace(row["COMMENTS"])
+                        ? row["COMMENTS"]
+                        : "";
+                    if (0 == cable.Length)
+                    {
+                        cable.Length = !string.IsNullOrWhiteSpace(row["CABLELENGTH"]) &&
+                                           double.TryParse(row["CABLELENGTH"], out double l)
+                               ? l
+                               : 0;
+                    }
+                    cable.Information = row["SUFFIX"];
+                    cable.Class = (!string.IsNullOrWhiteSpace(row["FORC"])) ? 
+                        puow.Query<CableClass>().FirstOrDefault(x => x.TypeName == row["FORC"]) : null;
+                    cable.Size = (!string.IsNullOrWhiteSpace(row["CABLESIZE"])) &&
+                                 int.TryParse(row["CABLESIZE"], out int sz)
+                        ? cable.Class?.CableSizes.FirstOrDefault(x => x.Count == sz)
+                        : null;
+
+                    cable.Media = puow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "Media");
+
+                    string typestr = MainWindow.UNK;
+                    if ( MainWindow.CableTypeDictionary.ContainsKey(row["CABLETYPE"].Trim()))
+                    {
+                        typestr = MainWindow.CableTypeDictionary[row["CABLETYPE"].Trim()];
+                        cable.Type = puow.Query<CableType>().FirstOrDefault(x => x.TypeName == typestr);
+
+                    }
+                    if (row["DROPCABLE"] == "1")
+                        cable.FlexText = "DROPCABLE";
+
+
+                    if (!string.IsNullOrWhiteSpace(row["INSTALLDATE"]) && DateTime.TryParse(row["INSTALLDATE"], out DateTime dt))
+                        cable.DatePlaced = dt;
+                    cable.CableName = cable.GeneratedName; //{ 
+                    puow.Save(cable);
+
+                    MainWindow.currentSuccess++;
+                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"AfterCreation {sw3.Elapsed}", true, true, tempfile);
+                    progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
+                    {
+                        ImportStatus = "Success",
+                        Type = "Cable"
+                    }));
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex.Message}\n{ex.StackTrace}");
+
+                    throw;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MainWindow.currentErrors++;
+                progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
+                {
+                    SourceTable = cabTable,
+                    ImportStatus = "Exception" + $"\t{ex.Message}",
+                    Type = "Exception"
+                }));
+                StaticHelperMethods.WriteOut($"{ex}");
+                return false;
+            }
+            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"CableMethodTime:\t{sw.Elapsed}", true, true, tempfile);
+            return false;
+        }
+        
         public static void ProcessConduit(UnitOfWork puow, Dictionary<string, string> row, string conTable,
             EventHandler<ProgressMadeEventArgs> progressMade, string stepName)
         {
             //"ID", "STATUS", "LENGTH", "TYPE", "CODE", "MEDIA", "WORKORDER", "CABLE", "INSTALLDATE" 
-            //" ", " ", " ", " ", " ", " ", " ", " ", " " 
+            //"ID", "STATUS", "LENGTH", "TYPE", "CODE", "MEDIA", "WORKORDER", "CABLE", "INSTALLDATE"" ", " ", " ", " ", " ", " ", " ", " ", " " 
             Stopwatch sw = Stopwatch.StartNew();
             const string tempfile = @"C:/Stopwatch/times.bat";
-            //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"",true,true,tempfile);
 
-
-            //using (UnitOfWork puow =new UnitOfWork(puow.DataLayer))
-            //{
             var sw3 = Stopwatch.StartNew();
-            //puow.BeginTransaction();
 
-            //Location source = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
-            //Location destination = puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row[""]);
-            //if (source == null)
-            //    source = DefaultFields.GetBusinessObjectDefault<Location>(puow, "LocationName", "UNKNOWN");
-            //if (destination == null) destination = DefaultFields.GetBusinessObjectDefault<Location>(puow, "LocationName", "UNKNOWN");
             try
             {
                 Conduit conduit = new Conduit(puow);
@@ -433,11 +490,11 @@ namespace DataConverter.Classes
 
                 conduit.Source = cable != null && cable.Source != null
                     ? cable.Source
-                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == "UNKNOWN");
+                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
 
-                conduit.Destination = cable != null && cable.Source != null
-                    ? cable.Source
-                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == "UNKNOWN");
+                conduit.Destination = cable != null && cable.Destination != null
+                    ? cable.Destination
+                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
 
                 conduit.ExternalSystemId = int.Parse(row["ID"]);
                 conduit.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == "UNKNOWN");
@@ -469,50 +526,12 @@ namespace DataConverter.Classes
                                                                                    : "Media"));
 
 
-                conduit.ConduitName = conduit.GeneratedName; //{
                 if (!string.IsNullOrWhiteSpace(row["INSTALLDATE"]) &&
                     DateTime.TryParse(row["INSTALLDATE"], out DateTime dt))
                     conduit.DatePlaced = dt;
-                // puow.CommitTransaction(); 
-                //puow.CommitChanges();
-                ////  puow.CommitTransaction();////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-                //  NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"s3:\t{sw3.Elapsed}", true, true,
-                //   tempfile);
+                conduit.ConduitName = conduit.GeneratedName; //{
                 puow.CommitChanges();
-                //do class media stuffif  
-                //try
-                //{
-                //    //lock (locker)
-                //    //{
-                //    if (conduit.Class != null)
-
-                //    {
-                //        //watch out for session mixing
-                //        if (Size != null &&
-                //            !conduit.Class.ConduitSizes.Any(x => x.Oid == conduit.Size.Oid))
-                //            conduit.Class.ConduitSizes.Add(conduit.Size);
-                //        if (Type != null &&
-                //            !conduit.Class.ConduitTypes.Any(x => x.Oid == Type.Oid))
-                //        {
-                //            conduit.Type.Code = row["CODE"];
-                //            conduit.Class.ConduitTypes.Add(conduit.Type);
-                //        }
-                //        if (Media != null &&
-                //            !conduit.Class.ConduitMedia.Any(x => x.Oid == Media.Oid))
-                //            conduit.Class.ConduitMedia.Add(conduit.Media);
-                //    }
-                //    tempuow.CommitTransaction();
-                //    uow.CommitTransaction();
-                //    // }
-                //}
-                //catch (Exception ex)
-                //{
-                //    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"problem with media stuff{ex}");
-                //}
                 MainWindow.currentSuccess++;
                 progressMade?.Invoke(stepName,
                     new ProgressMadeEventArgs(new ImportedItem()
@@ -545,131 +564,6 @@ namespace DataConverter.Classes
                 tempfile);
         }
 
-        public static Pole CreatePole(Dictionary<string, string> row, UnitOfWork puow, string table)
-        {
-            /*"JUNCTIONS"  "OBJECTID", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY",
-            "INSTALLDATE_NEW", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", "REFERENCENAME",
-            "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE", "WOID", "ROUTE" */
-
-            //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
-            try
-            {
-                using (NestedUnitOfWork uow = puow.BeginNestedUnitOfWork())
-                {
-                    uow.BeginTransaction();
-                    Pole pole = new Pole(uow);
-                    pole.ExternalSystemId = int.Parse(row["ENTITYID"]);
-                    uow.CommitChanges();
-                    pole.SourceTable = table;
-                    pole.SourceType = row["ENTITYTYPE"];
-                    pole.LocationName = !string.IsNullOrWhiteSpace(row["ENTITYNAME"]) ? row["ENTITYNAME"] : "<EMPTY>";
-                    pole.WorkOrder = !string.IsNullOrWhiteSpace(row["WO"]) ?  uow.Query<WorkOrder>().FirstOrDefault(x=>x.OrderNumber == row["WO"]) : null;
-
-
-
-                    pole.Type = !string.IsNullOrWhiteSpace(row["TYPE"]) ? 
-                        uow.Query<PoleType>().FirstOrDefault(x => x.TypeName == row["TYPE"])
-                        : DefaultFields.GetBusinessObjectDefault<PoleType>(uow, "TypeName", "UNKNOWN");
-
-                    pole.Status = !string.IsNullOrWhiteSpace(row["STATUS"]) ? DefaultFields.GetBusinessObjectDefault<LocationStatus>(uow, "StatusName", row["STATUS"])
-                        : DefaultFields.GetBusinessObjectDefault<LocationStatus>(uow, "StatusName", "UNKNOWN");
-                    pole.Comment = $"APId:{row["APID"] } ";
-                    pole.Wirecenter = DefaultFields.GetBusinessObjectDefault<Wirecenter>(uow, new List<Tuple<string, object>>()                        {
-                            new Tuple<string, object>("LocationName", "UNKNOWN")
-                        });
-                    pole.Boundary = !string.IsNullOrWhiteSpace(row["CITY"])
-                        ? DefaultFields
-                     .GetBusinessObjectDefault<Boundary>(uow,
-                                                         new List<Tuple<string, object>>()
-                        {
-                            new Tuple<string, object>("Name", row["CITY"])
-                        })
-                        : null; //{
-                    if (!string.IsNullOrWhiteSpace(row["INSTALLDATE_NEW"]) &&
-                        DateTime.TryParse(row["INSTALLDATE_NEW"], out DateTime dt))
-                        pole.DatePlaced = dt;
-                    try
-                    {
-                        uow.CommitTransaction();
-                        puow.CommitChanges();
-                    }
-                    catch //(Exception ex)
-                    {
-                        uow.RollbackTransaction();
-                        throw;
-                    }
-                    return pole;
-                }
-            }
-            catch (Exception ex)
-            {
-                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
-                return null;// System.Threading.Tasks.Task.FromResult(null); ;
-            }
-        }
-
-        public static Junction CreateJunction(Dictionary<string, string> row, UnitOfWork puow, string table)
-        {
-            /*"JUNCTIONS" ( "OBJECTID", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY",
-            "INSTALLDATE_NEW", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", "REFERENCENAME",
-            "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE", "WOID", "ROUTE") AS */
-
-            try
-            {
-                using (NestedUnitOfWork uow = puow.BeginNestedUnitOfWork())
-                { 
-                    Junction junk = new Junction(uow);
-                    junk.ExternalSystemId = int.Parse(row["ENTITYID"]);
-                    uow.CommitChanges();
-                    junk.SourceTable = table;
-                    junk.SourceType = row["ENTITYTYPE"];
-                    junk.LocationName = !string.IsNullOrWhiteSpace(row["ENTITYNAME"]) ? row["ENTITYNAME"] : "<EMPTY>";
-
-                    junk.WorkOrder = !string.IsNullOrWhiteSpace(row["WOID"])
-                        ? uow.Query<WorkOrder>().FirstOrDefault(x => x.OrderNumber == row["WOID"])
-                        : null;
-                    junk.Type = !string.IsNullOrWhiteSpace(row["SUBTYPE"])
-                        ? uow.Query<JunctionType>().FirstOrDefault(x => x.TypeName == row["SUBTYPE"])
-                       : uow.Query<JunctionType>().FirstOrDefault(x => x.TypeName == MainWindow.UNK);
-                    junk.Route = !string.IsNullOrWhiteSpace(row["ROUTE"])
-                        ? uow.Query<Route>().FirstOrDefault(x => x.Name == row["ROUTE"])
-                        : null;
-                    junk.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
-                        ? uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == row["STATUS"])
-                        : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == MainWindow.UNK);
-                         
-                    junk.Wirecenter =   uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK ) ;
-
-
-
-
-
-
-
-                    junk.Comment = $"APId:{row["APID"] } ";
-
-                    junk.Boundary = !string.IsNullOrWhiteSpace(row["CITY"]) ?uow.Query<Boundary>().FirstOrDefault(x=>x.Name== row["CITY"]):null; //{
-                    if (!string.IsNullOrWhiteSpace(row["INSTALLDATE_NEW"]) && DateTime.TryParse(row["INSTALLDATE_NEW"], out DateTime dt))
-                        junk.DatePlaced = dt;
-                    try
-                    { 
-                       uow.CommitChanges();
-                        puow.CommitChanges();
-                    }
-                    catch //(Exception ex)
-                    { 
-                        throw;
-                    }
-                    return junk;
-                }
-            }
-            catch (Exception ex)
-            {
-                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
-                return null;// System.Threading.Tasks.Task.FromResult(null); ;
-            }
-        }
-
         public static bool? ProcessJunction(UnitOfWork uow, Dictionary<string, string> row, string junkTable, EventHandler<ProgressMadeEventArgs> progressMade)
         {
             object junk = null;
@@ -682,7 +576,7 @@ namespace DataConverter.Classes
                 if (row["ENTITYTYPE"] == "POLE")
                 //make pole instead
                 {
-                    if (!uow.Query<Pole>().Any(x => x.ExternalSystemId.ToString() == row["ENTITYID"]))
+                    if (!uow.Query<Pole>().Any(x => x.ExternalSystemId.ToString() == row["ACCESSPOINTID"]))
                     {
                         junk = CreatePole(row, uow, junkTable);
                     }
@@ -694,7 +588,7 @@ namespace DataConverter.Classes
                 }
                 else
                 {
-                    if (!uow.Query<Junction>().Any(x => x.ExternalSystemId.ToString() == row["ENTITYID"]))
+                    if (!uow.Query<Junction>().Any(x => x.ExternalSystemId.ToString() == row["ACCESSPOINTID"]))
                     {
                         junk = CreateJunction(row, uow, junkTable);
                     }
@@ -702,7 +596,7 @@ namespace DataConverter.Classes
 
                 if (junk != null)
                     return true;
-                else if (uow.Query<Location>().Any(x => x.ExternalSystemId.ToString() == row["ENTITYID"]))
+                else if (uow.Query<Location>().Any(x => x.ExternalSystemId.ToString() == row["ACCESSPOINTID"]))
                     return null;
                 else throw new System.Exception($"Failed to create Junction!!");
 
@@ -811,70 +705,8 @@ namespace DataConverter.Classes
                 return true;
             }
         }
-
-
-        //address
-        public static bool ProcessAddress(UnitOfWork uow, Dictionary<string, string> row, string tbl, EventHandler<ProgressMadeEventArgs> progressMade
-  , string stepName)
-        {
-            //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
-            //make sure not imported already
-
-            try
-            {
-                //"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "SUBID","CODE"
-                //" ", " ", " ", " ", " ", " ", " "
-
-                //see ifaddress alrady exists
-                if (int.TryParse(row["ADDYID"], out int id) && !uow.Query<NewNetServices.Module.BusinessObjects.CableManagement.Address>()
-                    .Any(x => x.ExternalSystemId == id))
-                {
-                    Address addy = new Address(uow);
-                    addy.ExternalSystemId = id;
-                    addy.SourceTable = tbl; // int.Parse(row["LOCATIONID"]); 
-                    addy.FlexText = row["FLEXTEXT"];
-                    addy.SourceTable = tbl;
-                    addy.Street = row["STREET"];
-                    addy.City = !string.IsNullOrWhiteSpace(row["CITY"]) ? row["CITY"] + " " : "";
-
-                    if (!string.IsNullOrWhiteSpace(row["STATE"]))
-                        addy.StateProvince = uow.Query<NewNetServices.Module.BusinessObjects.CableManagement.State>().FirstOrDefault(x => x.ShortName == row["STATE"]);
-
-
-                    uow.CommitChanges();
-                    MainWindow.currentSuccess++;
-                    progressMade?.Invoke(stepName,
-                                         new ProgressMadeEventArgs(new ImportedItem()
-                                         {
-                                             Guid = addy.Oid.ToString(),
-                                             Id = "" + id,
-                                             SourceTable = tbl,
-                                             ImportStatus = "Success",
-                                             Type = "Address",
-                                         }));
-                }
-                return true;
-
-            }
-            catch (Exception ex)
-            {
-                StaticHelperMethods.WriteOut($"{ex}");
-                // return false;
-                MainWindow.currentErrors++;
-                progressMade?.Invoke(stepName,
-                                     new ProgressMadeEventArgs(new ImportedItem()
-                                     {
-                                         SourceTable = tbl,
-                                         ImportStatus = "Exception" + $"\t{ex.Message}",
-                                         Type = "Exception"
-                                     }));
-                return false;
-            }
-
-
-        }
-        //        private static string defaultStatusName = "UNKNOWN";
-        //        private static string defaultTypeName = "UNKNOWN";
+        //        private static string defaultStatusName = MainWindow.UNK;
+        //        private static string defaultTypeName = MainWindow.UNK;
 
         //        //public static Guid ImportSubscriber(string[] args, string cmsconnectionString, string oracleconnectionString, out string tinfo)
         //        //{
@@ -1038,7 +870,7 @@ namespace DataConverter.Classes
         //        //            sub.Handle = args[MainWindow.GID_Index];
         //        //            sub.IsEngineering = true;
 
-        //        //            sub.Media = uow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "UNKNOWN");
+        //        //            sub.Media = uow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == MainWindow.UNK);
         //        //            sub.Class = uow.Query<CableClass>().FirstOrDefault(x => x.TypeName == "Fiber");
 
 
@@ -1154,7 +986,7 @@ namespace DataConverter.Classes
         //            {
         //                return loc;
         //            }
-        //            else if ((loc = nestedUow.Query<Location>().FirstOrDefault(x => x.LocationName == "UNKNOWN")) != null)
+        //            else if ((loc = nestedUow.Query<Location>().FirstOrDefault(x => x.LocationName == MainWindow.UNK)) != null)
         //            {
 
         //                return loc;
@@ -1163,7 +995,7 @@ namespace DataConverter.Classes
         //            {
         //                loc = new Location(nestedUow)
         //                {
-        //                    LocationName = "UNKNOWN",
+        //                    LocationName = MainWindow.UNK,
         //                    Status = NewNetServices.Module.BusinessObjects.Core.GlobalSystemSettings.GetInstanceFromDatabase(nestedUow).DefaultLocationStatusAvailable
         //                };
         //            }
@@ -1213,16 +1045,115 @@ namespace DataConverter.Classes
         //  
         //    if ()
         //}
-        public class ProgressMadeEventArgs : EventArgs
+       
+ public class ProgressMadeEventArgs : EventArgs
         {
-            public String Error { get; set; }
 
             public ImportedItem I = null;
+
             public ProgressMadeEventArgs(ImportedItem item)
             {
                 I = item;
             }
+
+            public String Error { get; set; }
         }
+        /*public static void ProcessCablePair(UnitOfWork uow,
+                                            Dictionary<string, string> row,
+                                            string cpTable,
+                                            ref int successfulCpairs,
+                                            ref int errorsCpairs,
+                                            EventHandler<ProgressMadeEventArgs> progressMade)
+        {
+            if (!uow.Query<PhysicalPair>().Any(x => x.ExternalSystemId.ToString() == row["ID"]))
+            {
+                object locker = new object();
+                try
+                {
+
+                    if (!string.IsNullOrWhiteSpace(row["CABLE"])) //look up cable we probably omorted already//{
+                    {
+                        PhysicalPair cpair = new PhysicalPair(uow);
+
+                        cpair.ExternalSystemId = int.Parse(row["ID"]);
+                        cpair.SourceTable = cpTable; // int.Parse(row["LOCATIONID"]);  
+                        cpair.Status = !string.IsNullOrWhiteSpace(row["STATUS"]) ? DefaultFields.GetBusinessObjectDefault<CablePairStatus>(uow, "StatusName", row["STATUS"]) : DefaultFields.GetBusinessObjectDefault<CablePairStatus>(uow, "StatusName", "UNKNOWN");
+                        cpair.PairNumber = int.Parse(row["NUM"]);
+                        try
+                        {
+                            PhysicalCable cable = uow.Query<PhysicalCable>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CABLE"]);
+                            if (cable != null)
+                            {
+                                //store guid and add to cable afterwards to avoid locking issues
+                                //lock (locker)
+                                //{
+                                //    cable_cpairs_List.Add(new Tuple<Guid, Guid>(cable.Oid, cpair.Oid));
+                                cable.CablePairs.Add(cpair);
+                                cpair.Cable = cable;
+                                //}
+                                uow.CommitChanges();
+                                successfulCpairs++;
+                                progressMade?.Invoke("Cable Pairs",
+                                                     new ProgressMadeEventArgs(new ImportedItem()
+                                                     {
+                                                         Guid = cpair.Oid.ToString(),
+                                                         Id = cpair.ExternalSystemId?.ToString(),
+                                                         SourceTable = cpair.SourceTable,
+                                                         ImportStatus = "Success",
+                                                         RecordStatus = cpair.Status?.ToString(),
+                                                         Type = "CablePair"
+                                                     }));
+                            }
+                            else throw new Exception($"Cannot Find cable '{row["CABLE"]}' for pair '{cpair.ExternalSystemId}'");
+                            // }
+                        }
+                        catch (Exception ex)
+                        {
+                            errorsCpairs++;
+                            StaticHelperMethods.WriteOut(@"
+                                uow.RollbackTransaction();
+                                puow.CommitChanges();
+                                errorsCpairs++\n" + $"{string.Join(", ", row)}" +
+                                $"\n{ex}" +
+                                $"\n{ex.StackTrace}" +
+                                $"\n{ex.Source}" +
+                                $"\n{ex.TargetSite}");
+                        }
+                    }
+                    else
+                    {
+                        NewNetServices.Module.Core.StaticHelperMethods.WriteOut(@"  uow.RollbackTransaction();
+                            throw new Exception($""Cable not found with id: {row[""CABLE ""]}"); //{
+                                                                                                 //  uow.RollbackTransaction();
+                        throw new Exception($"Cable not found with id: {row["CABLE "]}"); //{
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    errorsCpairs++;
+                    progressMade?.Invoke("Cable Pairs",
+                                         new ProgressMadeEventArgs(new ImportedItem()
+                                         {
+                                             SourceTable = cpTable,
+                                             ImportStatus = "Exception" + $"\t{ex.Message}",
+                                             Type = "Exception"
+                                         }));
+                    StaticHelperMethods.WriteOut($"{ex}");
+                }
+            } //end if exists
+            else
+            {
+                progressMade?.Invoke(null,
+                                     new ProgressMadeEventArgs(new ImportedItem()
+                                     {
+                                         SourceTable = cpTable,
+                                         ImportStatus = "OK",
+                                         Type = $"Already Exists {row["ID"]}"
+                                     }));
+            }
+        }
+*/
     }//end imported helper
     enum ErrorDescription
     {

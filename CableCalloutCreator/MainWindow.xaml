@@ -1,0 +1,46 @@
+﻿<Window
+    x:Class="CableCalloutCreator.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+      xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"  
+    xmlns:local="clr-namespace:CableCalloutCreator"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Width="800"
+    Height="450"
+    mc:Ignorable="d"
+    Title="MainWindow">
+
+    <Grid>
+        <dx:UniformStackPanel
+            Width="850"
+    Height="500"
+            Margin="20,50,20,50"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Orientation="Vertical">
+            <ComboBox Name="TbCmsConnectionString" IsEditable="True"
+                Height="28"
+                Margin="10 10 10 10"
+                >
+                <ComboBoxItem  IsSelected="False">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=NNKalona</ComboBoxItem>
+                <ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc2</ComboBoxItem>
+
+                <!--<ComboBoxItem IsSelected="True">Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=NNKalona</ComboBoxItem>
+                <ComboBoxItem >Integrated Security=SSPI;Pooling=false;Data Source=kevindeveloper\sqlexpress ;Initial Catalog=nnNcc</ComboBoxItem>-->
+            </ComboBox>
+            <dxe:ProgressBarEdit
+                Height="20"
+                Margin="10 0 10 10"
+                Value="0"
+                BorderBrush="#FF033436"
+                BorderThickness="3"
+                ContentDisplayMode="Content"
+                Name="progressBar" />
+            <RichTextBox HorizontalAlignment="Center" Name="tbStatus"> </RichTextBox>
+            <Button Click="BtnStart_Click" Name="btnStart">Start</Button>
+        </dx:UniformStackPanel>
+    </Grid>
+
+</Window>

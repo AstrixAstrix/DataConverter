@@ -99,85 +99,62 @@ namespace DataConverter
         }
         async Task BeginWork()
         {
-           
+
             if (!string.IsNullOrWhiteSpace(TbCmsConnectionStringText) &&
                 !string.IsNullOrWhiteSpace(tbOracleConnectionStringText))
-            { 
-               if(BDefaults) await CreateDefaults();
-
-                if (Bwc)
-                {
-                    await Wirecenters();
-                }
-                 
+            {
+                //Always create types
+                if (CableTypeDictionary.Count < 1)
+                    CreateCableTypesDictionary();
+                if (BDefaults) await CreateDefaults();
+                if (Bwc) await Wirecenters();
+                //olts ports, splitters ports
+                if (Bolt) await Olts();
+                if (BoltPorts) await OltPorts();
+                if (BSplit) await Splitters();
+                if (BSplitPorts) await SplitterPorts();
                 //junctions and subscribers 
                 if (Bsub)
                 {
                     await Addresses();
                     await Subscribers();
                 }
-
-                if (Bjunk)
-                {
-                    await Junctions();
-                } //ftth
-
-
-                if (Bolt)
-                {
-
-                    await Olts();
-                }
-
-                if (BoltPorts)
-                {
-                    await OltPorts();
-                }
-                if (BSplit)
-                {
-                    await Splitters();
-                }
-                if (BSplitPorts)
-                {
-                    await SplitterPorts();
-                }
-                if (Bcab)
-                {
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"Entering CablesWIthSpans");
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"Entering CablesWIthSpans");
-                    await CablesWithSpans();
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"Entering Cables");                   
-                    await Cables();
-                }
+                if (Bjunk) await Junctions();
+                //assignments
+                if (BAssPl) await AssignmentsPrimaryLocations();
+                //cables
+                if (BcabW) await CablesWITHSpans();
+                if (BcabWO) await CablesWithOUTSpans();
+                //cablepairs
+                if (Bcpair) await CablePairs();
+                //dgroups
+                if (Bdgroup) await DesignationGroups();
+                //dpairs
+                if (Bdpair) await DesignationPairs();
+                //conduits
                 if (Bcon)
                 {
                     await Conduits();
                 }
-                if (Bdgroup)
-                {
-                    await DesignationGroups();
-                }
-                if (Bcpair)
-                {
-                    await CablePairs();
-                }
-                if (Bdpair)
-                {
-                    await DesignationPairs();
-                }
+                //link cp dps
                 if (Bcpdp)
                 {
-                    await DesignationPairsCablePairLink();
+                    await CablePairDesignationPairLink();
                 }
+                //callouts
                 if (Bcall)
                 {
                     await CableCallouts();
                 }
-                if (BOutDPairs) await OutDesignationPairs();
+                //OLT->splitter->DPairs
                 if (BOltSplitDp) await OLT_Splitter_DP();
-                if (BAssPl) await AssignmentsPrimaryLocations();
+                //out dpairs
+                if (BOutDPairs) await OutDesignationPairs();
+                //assignment olts
                 if (BAssOlt) await AssignmentOlt();
+                //assignment dpairs
                 if (BAssDPair) await AssignmentDPairs();
+                //assignment splitports
                 if (BAssSplitPort) await AssignmentSplitPort();
                 // });
                 //await Task.WhenAll(t);
@@ -203,7 +180,7 @@ namespace DataConverter
                     assignmentSplitPortTable = dbName + "." + assignmentSplitPortTable;
                     assignmentOltTable = dbName + "." + assignmentOltTable;
                     addressTable = dbName + "." + addressTable;
-                    cabTable = dbName + "." + cabTable;
+                    cablesWithOUTSpansTable = dbName + "." + cablesWithOUTSpansTable;
                     conTable = dbName + ".Conduits";
                     CABLEPAIR_Table = dbName + ".CablePairs";
                     dgroupTable = dbName + ".DesignationGroups";
@@ -551,31 +528,31 @@ namespace DataConverter
                     }
                 }
                 else pl = partitionlist.ToList();
-               
+
                 //  else pl = partitionlist.ToList();
                 //start task for each chunk of data
                 //pl.Cast<TActionInType>().ForEach(
                 //                  (dataset) =>
                 int k = 0;
-               pl.ForEach( 
-                                  (dataset) =>
-                {
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"PARTITION ITERATION {++k} of {pl.Count} containing ");
-                    if (dataset == null)
-                    {
-                        MessageBox.Show(" line924                   if(dataset==null)MessageBox.Show(");
-                        return;
-                    }
+                pl.ForEach(
+                                   (dataset) =>
+                 {
+                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"PARTITION ITERATION {++k} of {pl.Count} containing ");
+                     if (dataset == null)
+                     {
+                         MessageBox.Show(" line924                   if(dataset==null)MessageBox.Show(");
+                         return;
+                     }
 
-                    //lock(lockobj)
-                    //{
-                    tasklist.Add(Task.Factory
-                        .StartNew(() =>
-                   {
-                       partaction((TActionInType)dataset);
-                   },TaskCreationOptions.LongRunning));
-                    //  } 
-                });
+                     //lock(lockobj)
+                     //{
+                     tasklist.Add(Task.Factory
+                          .StartNew(() =>
+                     {
+                         partaction((TActionInType)dataset);
+                     }, TaskCreationOptions.LongRunning));
+                     //  } 
+                 });
             }
             catch (Exception ex)
             {
@@ -604,8 +581,8 @@ namespace DataConverter
         private string assignmentOltTable = "ASSIGNMENT_OLT";
         private string assignmentPrimlocTable = "ASSIGNMENT_PRIMLOC";
         private string assignmentSplitPortTable = "ASSIGNMENT_SPLITPORT";
-        private string cabTable = "CABLESWITHOUTSPANS";
-        private string cabWithSpansTable = "CABLESWITHSPANS";
+        private string cablesWithOUTSpansTable = "CABLESWITHOUTSPANS";
+        private string cablesWITHSpansTable = "CABLESWITHSPANS";
         private string conTable = "CONDUITs";
         private string cpdpTable = "CABLEPAIRDESIGNATIONPAIR";
         private string CABLEPAIR_Table = "CABLEPAIRS";
@@ -628,26 +605,29 @@ namespace DataConverter
         private string[] assignmentPrimlocCols = { "ID", "ASSIGNMENTCLASS", "ASSIGNMENTPORT", "STATUS", "EFFECTIVEDATE", "CIRCUITID", "SUBSCRIBERID" };
         private string[] assignmentSplitPortCols = { "ID", "SPLITTERID" };
         private string[] cabColumns = new string[] {
-            "FORC", "CABLEID", "COMMENTS", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID", "DROPCABLE",
-            "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION",
-            "INSTALLDATE"
+      "FORC", "CABLEID","SUFFIX", "COMMENTS", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID",
+      "DROPCABLE", "CABLETYPE",
+      "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION", "INSTALLDATE"
         };
         private string[] conColumns = new string[] { "ID", "STATUS", "LENGTH", "TYPE", "CODE", "MEDIA", "WORKORDER", "CABLE", "INSTALLDATE" };
         private string[] cpColumns = new string[] { "ID", "NUM", "STATUS", "CABLE" };
         private string[] cpdpColumns = new string[] { "PAIRID", "COUNT", "STATUS", "CABLEID", "TU_ID", "LOGICALCOUNTID", "DESIGNATIONGROUPID", "LOGICALCOUNT", "DESIGNATIONGROUPNAME" };        //       List<Dictionary<string, string>> cabdata = new List<Dictionary<string, string>>();                
         private string[] dgroupColumns = new string[] { "DGID", "CLASS", "DGNAME", "STATUS", "CODE", "SOURCE", "MAXCOUNT" };
         private string[] dpColumns = new string[] { "ID", "COUNT", "DGROUP" };
-        private string[] junctionCols = new string[] { "OBJECTID", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY", "INSTALLDATE_NEW", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", "REFERENCENAME", "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE", "WOID", "ROUTE" };
+        private string[] junctionCols = new string[] {
+            "OBJECTID", "INSTALLDATE_NEW", "APID", "STATUS", "NAME", "WO", "TYPE", "CITY",
+            "INSTALLDATE", "ENTITYID", "ENTITYTYPE", "ACCESSPOINTTYPE", "ACCESSPOINTID", "REFERENCENAME", "REFERENCETYPECODE", "ENTITYNAME", "REGIONCODE", "SUBTYPE", "WOID", "ROUTE", "FINALTYPE", "IDLINK"
+            };
         private string[] oltCols = { "OLT_ID", "OLT_CODE", "SUB_RACK_CODE", "RACK_CODE", "CARD_NUM", "PORT_POSITION", "CR_LOGICAL_COUNT_ID", "CR_SITE_ID", "EQUIPOBJ_REF_ID", "OLTNAME" };
         private string[] oltPortsCols = { "OLTID", "OLTPORTID", "OLTPORTNUM" };
         private string[] oltSplitterDpCols = { "SPLITTERID", "INCABLEID", "INCABLENAME", "INCABLEOBJECTREF", "INCOUNTID", "INCOUNT", "OLTID" };
         private string[] outdPairsCols = { "SPLITTERPORTID", "DESIGNATIONPAIRID" };
         private string[] splitterCols = { "ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE", "ADDRESS_ID" };
         private string[] splitterPortsCols = { "ID", "NAME", "STATUS", "CR_EQUIPMENT_ID" };
-        private string[] subCols = new string[] {"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"};
-        private string[] addCols = new string[] {"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"};
-        private string[] wcCols = new string[] {"REGION_ID", "REGION_CNL", "REGION_NAME", "CO_ID", "CO_CODE", "CO_NAME", "DESCRIPTION", "ID"};
-  
+        private string[] subCols = new string[] { "ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID" };
+        private string[] addCols = new string[] { "ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID" };
+        private string[] wcCols = new string[] { "REGION_ID", "REGION_CNL", "REGION_NAME", "CO_ID", "CO_CODE", "CO_NAME", "DESCRIPTION", "ID" };
+
         #endregion
 
 
@@ -817,11 +797,19 @@ namespace DataConverter
                 return ret;
             }
         }
-        private bool Bcab
+        private bool BcabWO
         {
             get
             {
-                bool ret = false; Dispatcher.Invoke(() => ret = Chkcab.IsChecked.HasValue && Chkcab.IsChecked.Value);
+                bool ret = false; Dispatcher.Invoke(() => ret = ChkcabWO.IsChecked.HasValue && ChkcabWO.IsChecked.Value);
+                return ret;
+            }
+        }
+        private bool BcabW
+        {
+            get
+            {
+                bool ret = false; Dispatcher.Invoke(() => ret = ChkcabW.IsChecked.HasValue && ChkcabW.IsChecked.Value);
                 return ret;
             }
         }
@@ -989,7 +977,8 @@ namespace DataConverter
             {
                 bool ret = false; Dispatcher.Invoke(() => ret = Chkwc.IsChecked.HasValue && Chkwc.IsChecked.Value); return ret;
             }
-        }  private bool BDefaults
+        }
+        private bool BDefaults
         {
             get
             {
@@ -998,19 +987,11 @@ namespace DataConverter
         }
         #endregion
         public static int Skip = 0;
-        private void BtnSkip_Click(object sender, RoutedEventArgs e)
-        {
-            Skip++;
-        }
 
-        private void BtnUnSkip_Click(object sender, RoutedEventArgs e)
-        {
-            Skip--;
-        }
 
         private void BtnAll_Click(object sender, RoutedEventArgs e)
         {
-            Chkwc.IsChecked = true;
+            ChkDefaults.IsChecked = true;
             Chkwc.IsChecked = true;
             ChkOlt.IsChecked = true;
 
@@ -1048,9 +1029,9 @@ namespace DataConverter
             Chksub.IsChecked = true;
 
             Chksub.IsChecked = true;
-            Chkcab.IsChecked = true;
+            ChkcabWO.IsChecked = true;
 
-            Chkcab.IsChecked = true;
+            ChkcabWO.IsChecked = true;
             Chkcon.IsChecked = true;
 
             Chkcon.IsChecked = true;
@@ -1072,12 +1053,12 @@ namespace DataConverter
             Chkreverse.IsChecked = true;
 
             Chkreverse.IsChecked = true;
-    
+
         }
 
         private void BtnNone_Click(object sender, RoutedEventArgs e)
         {
-            Chkwc.IsChecked = false;
+            ChkDefaults.IsChecked = false;
             Chkwc.IsChecked = false;
             ChkOlt.IsChecked = false;
 
@@ -1115,9 +1096,9 @@ namespace DataConverter
             Chksub.IsChecked = false;
 
             Chksub.IsChecked = false;
-            Chkcab.IsChecked = false;
+            ChkcabWO.IsChecked = false;
 
-            Chkcab.IsChecked = false;
+            ChkcabWO.IsChecked = false;
             Chkcon.IsChecked = false;
 
             Chkcon.IsChecked = false;
@@ -1140,10 +1121,14 @@ namespace DataConverter
 
             Chkreverse.IsChecked = false;
         }
-        
+
 
         private void BtnInvert_Click(object sender, RoutedEventArgs e)
         {
+            if (ChkDefaults.IsChecked.HasValue)
+            {
+                ChkDefaults.IsChecked = !ChkDefaults.IsChecked.Value;
+            }
             if (Chkwc.IsChecked.HasValue)
             {
                 Chkwc.IsChecked = !Chkwc.IsChecked.Value;
@@ -1196,9 +1181,9 @@ namespace DataConverter
             {
                 Chksub.IsChecked = !Chksub.IsChecked.Value;
             }
-            if (Chkcab.IsChecked.HasValue)
+            if (ChkcabWO.IsChecked.HasValue)
             {
-                Chkcab.IsChecked = !Chkcab.IsChecked.Value;
+                ChkcabWO.IsChecked = !ChkcabWO.IsChecked.Value;
             }
             if (Chkcon.IsChecked.HasValue)
             {

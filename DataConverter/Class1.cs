@@ -44,8 +44,6 @@ namespace DataConverter
 
         public const string UNK = "UNKNOWN";
 
-        private Guid olttypeOid;
-
         private async Task AddressDefaults()
         {
             List<string> states = null;
@@ -89,7 +87,7 @@ namespace DataConverter
                     uow.CommitChanges();
                 }
             }
-                using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+            using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
             {
                 //just good olfd status for now
                 List<string> statuses = odw.GetDistinctDataColumn(assignmentPrimlocTable, "STATUS");
@@ -132,6 +130,275 @@ namespace DataConverter
 
             }
         }
+        public static Dictionary<string, string> CableTypeDictionary = new Dictionary<string, string>();
+
+        public void CreateCableTypesDictionary()
+        {
+
+            using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+            {
+                List<string> types = odw.GetListForDataColumn("Select distinct std_code from cable_Type where std_code is not null order by std_code");
+
+                //type
+                var del = new MyDelegate((lst) =>
+                 {
+                     using (var uow = new UnitOfWork(Tsdl))
+                     {
+                         foreach (var rawData in lst.Where(s => s != ""))
+                         {
+                             // add to dictionary
+                             string normalizedData = GetAllUntilNumber(rawData.Trim());
+                             CableTypeDictionary[rawData.Trim()] = normalizedData;
+                             if (!uow.Query<CableType>().Any(x => "" + x.TypeName == normalizedData))
+                             {
+                                 CableType cs = new CableType(uow) { TypeName = normalizedData, TypeDescription = rawData };
+                                 uow.CommitChanges();
+                             }
+                         }
+                     }
+                     return true;
+                 });
+                del.Invoke(types);//**
+
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"TYPES DICTIONARY {CableTypeDictionary.Count} items from {types.Count} total.\n{string.Join(" ", CableTypeDictionary.Select(x => $"\t{x.Key} ->  {x.Value}\t|"))}");
+
+            }
+        }
+        private async Task CableDefaults()
+        {
+
+            using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+            {
+                List<string> classes = odw.GetListForDataColumn(@"select distinct class from (
+                                                                                Select  case when cable_type=1 then 'COPPER' else case when cable_type=2 then 'FIBER' else 'UNKNOWN' end end as Class
+                                                                                from cable_Type where cable_type is not null order by cable_type)");
+                List<string> sizes = odw.GetListForDataColumn("Select distinct capacity from cable_type where capacity is not null order by capacity");
+                List<string> wiredimensions = odw.GetListForDataColumn("Select diameter from cable_type where diameter is not null order by diameter");
+                List<string> media = new List<string>() { "Media" };
+                List<string> types = odw.GetListForDataColumn("Select distinct std_code from cable_Type where std_code is not null order by std_code");
+                ;
+                List<string> statuses = odw.GetListForDataColumn(@"select distinct CABLESTATUS from(
+                                                                                            select CASE cast(cs.Status as varchar(50)) WHEN '5' 
+                                                                                            THEN 'Active' 
+                                                                                            when '6' then 'UNKNOWN'
+                                                                                            else cast(cs.Status as varchar(50)) end   AS CABLESTATUS
+                                                                                            from cable_seg cs)
+                                                                                                                                ");
+
+                List<string> classrelationships = odw.GetListForDataColumn(@"select  Capacity||'|'||std_code||'|'||class  as sizetypeclass from(
+                Select DISTINCT  case when Capacity is null then 0 else Capacity end as CAPACITY,case when  std_code is null then  'null' else std_code end as std_code, case when cable_type=1 then 'COPPER' else case when cable_type=2 then 'FIBER' else 'UNKNOWN' end end as CLASS
+                from cable_Type where capacity is not null order by capacity)");
+                /// will be size|type|class if size is null 0, if type null then 'null'
+                List<string> routes = odw.GetDistinctDataColumn(cablesWithOUTSpansTable, "CABLEROUTE");
+
+                //run types through ffunction to normalize the names
+                //   temptypes.ForEach((x) => types.Add(ImporterHelper.GetAllUntilNumber(x)));
+                //extras 
+                //class
+                var del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var str in lst.Where(s => s != ""))
+                        {
+                            if (!uow.Query<CableClass>().Any(x => x.TypeName == str))
+                            {
+                                CableClass cs = new CableClass(uow) { TypeName = str, TypeDescription = str };
+                                uow.CommitChanges();
+                            }
+                        }
+                    }
+                    return true;
+                });
+                del.Invoke(classes);//**
+
+                //type
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var rawData in lst.Where(s => s != ""))
+                        {
+                            // add to dictionary
+                            string normalizedData = GetAllUntilNumber(rawData.Trim());
+                            CableTypeDictionary[rawData.Trim()] = normalizedData;
+                            if (!uow.Query<CableType>().Any(x => "" + x.TypeName == normalizedData))
+                            {
+                                CableType cs = new CableType(uow) { TypeName = normalizedData, TypeDescription = rawData };
+                                uow.CommitChanges();
+                            }
+                        }
+                    }
+                    return true;
+                });
+                del.Invoke(types);//**
+
+                //size
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var str in lst.Where(s => s != ""))
+                        {
+                            if (!uow.Query<CableSize>().Any(x => x.Code == str))
+                            {
+                                CableSize cs = new CableSize(uow) { Count = int.Parse(str), Code = str };
+                                uow.CommitChanges();
+                            }
+                        }
+                    }
+                    return true;
+                });
+                del.Invoke(sizes);//**
+                //media
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var str in lst
+                        .Where(s => s != ""))
+                        {
+                            if (!uow.Query<CableMedia>().Any(x => x.TypeName == str))
+
+                            {
+                                CableMedia cs = new CableMedia(uow) { TypeName = str, TypeDescription = str };
+                                //put media in all classes for this one
+                                foreach (var item in uow.Query<CableClass>())
+                                {
+                                    item.CableMedia.Add(cs);
+                                }
+                                uow.CommitChanges();
+                            }
+                        }
+                        return true;
+                    }
+                });
+                del.Invoke(media);//**
+
+                //wiredimensions
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var str in lst.Where(s => s != ""))
+                        {
+                            if (!uow.Query<WireDimension>().Any(x => "" + x.Gauge == str))
+                            {
+                                WireDimension cs = new WireDimension(uow) { Gauge = str };
+                                uow.CommitChanges();
+                            }
+                        }
+                    }
+                    return true;
+                });
+                del.Invoke(wiredimensions);//**
+
+                //routes
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var str in lst
+                        .Where(s => s != ""))
+                        {
+                            if (!uow.Query<Route>().Any(x => x.Name == str))
+                            {
+                                Route cs = new Route(uow) { Name = str };
+                                uow.CommitChanges();
+                            }
+                        }
+                    }
+                    return true;
+                });
+                IAsyncResult routeres = del.BeginInvoke(routes, null, null);//**
+
+                //status
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        foreach (var str in lst
+                        .Where(s => s != ""))
+                        {
+                            if (!uow.Query<CableStatus>().Any(x => x.StatusName == str))
+                            {
+                                CableStatus cs = new CableStatus(uow) { StatusName = str };
+                                uow.CommitChanges();
+                            }
+                        }
+                        return true;
+                    }
+                });
+                del.Invoke(statuses);//**
+
+                //have to wait for this stuff to finish before the next
+
+                //size typ class rel
+                del = new MyDelegate((lst) =>
+                {
+                    using (var uow = new UnitOfWork(Tsdl))
+                    {
+                        CableClass cclass = null;
+                        CableMedia cmedia = uow.Query<CableMedia>()
+                            .FirstOrDefault(x => x.TypeName == "Media");
+                        foreach (var str in lst
+                    .Where(s => s != ""))
+                        {
+                            //pipdelimited str   Capacity||'|'||std_code||'|'||class  as size|type|class
+                            var arr = str.Split('|');
+                            string size = arr[0], cls = arr[2], type = "";
+                            if (MainWindow.CableTypeDictionary.ContainsKey(arr[1].Trim()))
+                            {
+                                type = MainWindow.CableTypeDictionary[arr[1].Trim()];
+                            }
+
+                            cclass = uow.Query<CableClass>().FirstOrDefault(x => x.TypeName == cls);
+                            CableType ctype = uow.Query<CableType>().FirstOrDefault(x => x.TypeName == type);
+                            CableSize csize = uow.Query<CableSize>().FirstOrDefault(x => x.Count.ToString() == size);
+                            if (cclass != null)
+                            {
+                                //add size and tyype to class but mae sur we don't get dupes
+                                if (ctype != null && !cclass.CableTypes.Contains(ctype)) cclass.CableTypes.Add(ctype);
+                                if (csize != null && !cclass.CableSizes.Contains(csize)) cclass.CableSizes.Add(csize);
+                                uow.CommitChanges();
+                            }
+                        }
+                        //add media
+                        if (cmedia != null)
+                        {
+                            if (!cclass.CableMedia.Contains(cmedia))
+                                cclass.CableMedia.Add(cmedia);
+                        }
+                        return true;
+                    }
+                });
+                del.Invoke(classrelationships);
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"TYPES DICTIONARY {CableTypeDictionary.Count} items from {types.Count} total.\n{string.Join(" ", CableTypeDictionary.Select(x => $"\t{x.Key} ->  {x.Value}\t|"))}");
+                await Task.FromResult(routeres);
+            }
+        }
+        private static string GetAllUntilNumber(string str)
+        {
+            if (string.IsNullOrEmpty(str))
+            {
+                return string.Empty;
+            }
+            //if it starts with a number, return the full string
+            if (char.IsNumber(str[0]))
+                return str;
+            string ret = "";
+            foreach (char c in str)
+            {
+                if (!char.IsNumber(c))
+                {
+                    if (c != '?')//get rid of ?? in bfc
+                        ret += c;
+                }
+                //must be a number, return!
+                else return ret.Trim();
+            }
+            return ret;
+        }
 
         private async Task CablePairDefaults()
         {
@@ -172,9 +439,8 @@ namespace DataConverter
             {
 
                 List<string> boundaries = odw.GetDistinctDataColumn(junkTable, "CITY");
-                List<string> types = odw.GetDistinctDataColumn(junkTable, "SUBTYPE");
-                types.Add("JUNCTION")
-;
+                List<string> types = odw.GetListForDataColumn(@"select distinct FINALTYPE from junctions");
+
                 List<string> statuses = odw.GetDistinctDataColumn(junkTable, "STATUS");
                 statuses.Add(UNK);
                 List<string> routes = odw.GetDistinctDataColumn(junkTable, "ROUTE");
@@ -210,8 +476,8 @@ namespace DataConverter
                  return true;
              });
                 IAsyncResult routeres = del.BeginInvoke(routes, null, null);
-                 
-                await Task.FromResult(routes); 
+
+                await Task.FromResult(routes);
 
                 //boundaries
                 del = new MyDelegate((lst) =>
@@ -221,10 +487,10 @@ namespace DataConverter
                        foreach (var str in lst
                          .Where(s => s != ""))
                        {
-                            if (!string.IsNullOrWhiteSpace(str)&&!uow.Query<Boundary>().Any(x => x.Name== str))
+                           if (!string.IsNullOrWhiteSpace(str) && !uow.Query<Boundary>().Any(x => x.Name == str))
 
                            {
-                               Boundary cs = new Boundary(uow) { Name = str  };
+                               Boundary cs = new Boundary(uow) { Name = str };
                                uow.CommitChanges();
                            }
                        }
@@ -232,7 +498,8 @@ namespace DataConverter
                    return true;
                });
                 IAsyncResult boundres = del.BeginInvoke(boundaries, null, null);
-                await Task.FromResult(boundres); 
+                await Task.FromResult(boundres);
+
                 //type
                 del = new MyDelegate((lst) =>
                {
@@ -252,8 +519,9 @@ namespace DataConverter
                    return true;
                });
                 IAsyncResult typeres = del.BeginInvoke(types, null, null);
-                await Task.FromResult(typeres); 
-                //class
+                await Task.FromResult(typeres);
+
+                // status
                 del = new MyDelegate((lst) =>
                {
                    using (var uow = new UnitOfWork(Tsdl))
@@ -264,16 +532,16 @@ namespace DataConverter
                            if (!uow.Query<LocationStatus>().Any(x => x.StatusName == str))
 
                            {
-                               LocationStatus cs = new LocationStatus(uow) { StatusName = str };
+                               LocationStatus cs = new LocationStatus(uow) { StatusName = str, StatusDescription = str };
                                uow.CommitChanges();
                            }
                        }
                    }
                    return true;
                });
-                IAsyncResult statusres = del.BeginInvoke(statuses, null, null); 
+                IAsyncResult statusres = del.BeginInvoke(statuses, null, null);
                 await Task.FromResult(statusres);
-            }
+            }//using odw
 
         }
 
@@ -305,7 +573,7 @@ namespace DataConverter
                             var ot = new EquipmentType(uow) { TypeName = "VDSL" };
                             uow.Save(ot);
                             uow.CommitChanges();
-                             
+
                         }
                     }
                     return true;
@@ -347,26 +615,22 @@ namespace DataConverter
             {
 
                 //olt eqtype
-                using (var puow = new UnitOfWork(Tsdl))
+                using (var uow = new UnitOfWork(Tsdl))
                 {
-                    using (var uow = new UnitOfWork(Tsdl))
+                    var gss = GlobalSystemSettings.GetInstanceFromDatabase(uow);
+                    ////////// 
+                    if (gss.OLT_PortType == null)
                     {
-                        var gss = GlobalSystemSettings.GetInstanceFromDatabase(uow);
-                        ////////// 
-                        if (gss.OLT_PortType == null)
-                        {
-                            var pt = new PortType(uow) { TypeName = "OLTPORT" };
-                            gss.OLT_PortType = pt;
+                        var pt = new PortType(uow) { TypeName = "OLTPORT" };
+                        gss.OLT_PortType = pt;
 
-                            uow.CommitChanges();
-                        }
-                        olttypeOid = gss
-                            .OLT_PortType.Oid;
+                        uow.CommitChanges();
                     }
-
-                    await Task.Delay(1);
+                    oltTypeOid = gss
+                        .OLT_PortType.Oid;
                 }
 
+                await Task.Delay(100);
 
             }//using ORACLE odw
         }
@@ -375,7 +639,7 @@ namespace DataConverter
         {
             using (var uow = new UnitOfWork(Tsdl))
             {   //do work
-                if(!uow.Query<PoleType>().Any(x=>x.TypeName=="POLE"))
+                if (!uow.Query<PoleType>().Any(x => x.TypeName == "POLE"))
                 {
                     var pt = new PoleType(uow)
                     {
@@ -414,7 +678,7 @@ namespace DataConverter
                             gss.SplitterEquipmentType = eq;
                             uow.CommitChanges();
                         }
-                        splittertypeOid = gss.SplitterEquipmentType.Oid;
+                        splitterEquipmentTypeOid = gss.SplitterEquipmentType.Oid;
                     }
                     return true;
                 });
@@ -487,7 +751,7 @@ namespace DataConverter
                                  new PortType(uow) { TypeName = "SPLITTERPORT" };
                             uow.CommitChanges();
                         }
-                        splittertypeOid = gss
+                        splitterEquipmentTypeOid = gss
                             .SplitterPortType.Oid;
                     }
 
@@ -524,7 +788,7 @@ namespace DataConverter
             List<string> distinctstates = null;
             using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
             {
-                distinctstates =await Task.FromResult( odw.GetDistinctDataColumn(subTable, "STATE"));
+                distinctstates = await Task.FromResult(odw.GetDistinctDataColumn(subTable, "STATE"));
             }
             List<Task> ts = new List<Task>();
             var del = new MyDelegate((lst) =>
@@ -633,201 +897,6 @@ namespace DataConverter
                 IAsyncResult classres = del.BeginInvoke(wos, null, null);
 
                 await Task.FromResult(classres);
-            }
-        }
-
-        public async Task CableDefaults()
-        {
-
-            using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
-            {
-                List<string> cableclass = odw.GetListForDataColumn(@"select distinct class from (
-                                                                                Select  case when cable_type=1 then 'COPPER' else case when cable_type=2 then 'FIBER' else 'UNKNOWN' end end as Class
-                                                                                from cable_Type where cable_type is not null order by cable_type)");
-                List<string> cablesizes = odw.GetListForDataColumn("Select distinct capacity from cable_type where capacity is not null order by capacity");
-                List<string> wiredimensions = odw.GetListForDataColumn("Select diameter from cable_type where diameter is not null order by diameter");
-                List<string> cablemedia = new List<string>() { "Media" };
-                List<string> cabletypes = odw.GetListForDataColumn("Select distinct std_code from cable_Type where std_code is not null order by std_code"); ;
-                List<string> cablestatuses = odw.GetListForDataColumn(@"select distinct CABLESTATUS from(
-                                                                                            select CASE cast(cs.Status as varchar(50)) WHEN '5' 
-                                                                                            THEN 'Active' 
-                                                                                            when '6' then 'UNKNOWN'
-                                                                                            else cast(cs.Status as varchar(50)) end   AS CABLESTATUS
-                                                                                            from cable_seg cs)
-                                                                                                                                ");
-
-                List<string> classrelationships = odw.GetListForDataColumn(@"select  Capacity||'|'||std_code||'|'||class  as capsizeclass from(
-                Select DISTINCT  case when Capacity is null then 0 else Capacity end as CAPACITY,case when  std_code is null then  'null' else std_code end as std_code, case when cable_type=1 then 'COPPER' else case when cable_type=2 then 'FIBER' else 'UNKNOWN' end end as CLASS
-                from cable_Type where capacity is not null order by capacity)"); /// will be size|type|class if size is null 0, if type null then 'null'
-                List<string> cableroutes = odw.GetDistinctDataColumn(cabTable, "CABLEROUTE");
-                //extras 
-                //class
-                var del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst.Where(s => s != ""))
-                        {
-                            if (!uow.Query<CableClass>().Any(x => x.TypeName == str))
-                            {
-                                CableClass cs = new CableClass(uow) { TypeName = str, TypeDescription = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                    }
-                    return true;
-                });
-                IAsyncResult classres = del.BeginInvoke(cableclass, null, null);
-                //size
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst.Where(s => s != ""))
-                        {
-                            if (!uow.Query<CableSize>().Any(x => "" + x.Count == str))
-                            {
-                                CableSize cs = new CableSize(uow) { Count = int.Parse(str), Code = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                    }
-                    return true;
-                });
-                IAsyncResult sizeres = del.BeginInvoke(cablesizes, null, null);
-
-                //wiredimensions
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst.Where(s => s != ""))
-                        {
-                            if (!uow.Query<WireDimension>().Any(x => "" + x.Gauge == str))
-                            {
-                                WireDimension cs = new WireDimension(uow) { Gauge = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                    }
-                    return true;
-                });
-                IAsyncResult wdres = del.BeginInvoke(wiredimensions, null, null);
-
-                //type
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var _str in lst.Where(s => s != ""))
-                        {
-                            string str = ImporterHelper.GetAllUntilNumber(_str);
-                            if (!uow.Query<CableType>().Any(x => "" + x.TypeName == str))
-                            {
-                                CableType cs = new CableType(uow) { TypeName = str, TypeDescription = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                    }
-                    return true;
-                });
-                IAsyncResult typeres = del.BeginInvoke(cabletypes, null, null);
-
-                //routes
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst
-                        .Where(s => s != ""))
-                        {
-                            if (!uow.Query<Route>().Any(x => x.Name == str))
-                            {
-                                Route cs = new Route(uow) { Name = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                    }
-                    return true;
-                });
-                IAsyncResult routeres = del.BeginInvoke(cableroutes, null, null);
-
-                //status
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst
-                        .Where(s => s != ""))
-                        {
-                            if (!uow.Query<CableStatus>().Any(x => x.StatusName == str))
-                            {
-                                CableStatus cs = new CableStatus(uow) { StatusName = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                        return true;
-                    }
-                });
-                IAsyncResult statusres = del.BeginInvoke(cablestatuses, null, null);
-
-
-                //media
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        foreach (var str in lst
-                        .Where(s => s != ""))
-                        {
-                            if (!uow.Query<CableMedia>().Any(x => x.TypeName == str))
-
-                            {
-                                CableMedia cs = new CableMedia(uow) { TypeName = str, TypeDescription = str };
-                                uow.CommitChanges();
-                            }
-                        }
-                        return true;
-                    }
-                });
-                IAsyncResult mediares = del.BeginInvoke(cablemedia, null, null);
-                //have to wait for this stuff to finish before the next
-
-                await Task.FromResult(classres);
-                await Task.FromResult(sizeres);
-                await Task.FromResult(typeres);
-                await Task.FromResult(mediares);
-                //size typ class rel
-                del = new MyDelegate((lst) =>
-                {
-                    using (var uow = new UnitOfWork(Tsdl))
-                    {
-                        CableClass cclass = null;
-                        CableMedia cmedia = uow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "Media");
-                        foreach (var str in lst
-                        .Where(s => s != ""))
-                        {
-                            //pipdelimited str
-                            var arr = str.Split('|');
-                            cclass = uow.Query<CableClass>().FirstOrDefault(x => x.TypeName == arr[2]);
-                            CableType ctype = uow.Query<CableType>().FirstOrDefault(x => x.TypeName == arr[1]);
-                            CableSize csize = uow.Query<CableSize>().FirstOrDefault(x => x.Count.ToString() == arr[0]);
-                            if (cclass != null)
-                            {
-                                if (ctype != null && !cclass.CableTypes.Contains(ctype)) cclass.CableTypes.Add(ctype);
-                                if (csize != null && !cclass.CableSizes.Contains(csize)) cclass.CableSizes.Add(csize);
-                                uow.CommitChanges();
-                            }
-                        }
-
-                        if (cmedia != null && !cclass.CableMedia.Contains(cmedia)) cclass.CableMedia.Add(cmedia);
-                        return true;
-                    }
-                });
-                IAsyncResult relres = del.BeginInvoke(classrelationships, null, null);
-
-                await Task.FromResult(statusres);
-                await Task.FromResult(relres);
             }
         }
 

@@ -53,12 +53,6 @@ namespace DataConverter
                 {
                     inlist.ForEach((row) =>
         {
-            if (Skip > 0)
-            {
-                Skip--;
-                return;
-            }
-            uow.BeginTransaction();
             //"ID", "DESIGNATEDPAIR"
             try
             {
@@ -66,17 +60,17 @@ namespace DataConverter
     !string.IsNullOrWhiteSpace(row["DESIGNATEDPAIR"]))
                 {
                     var assign = uow.Query<Assignment>()
-        .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ID"] && /*
-make aure not olt port*/
-           x.SourceTable == splitterPortsTable);
+        .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ID"]);
                     var dp = uow.Query<DesignationPair>()
         .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESIGNATEDPAIR"]);
                     if (assign != null & dp != null)
                     {
-                        assign.DesignatedPairs.Add(dp);
-                        uow.CommitTransaction();
-                        uow.CommitChanges();
-                        currentSuccess++;
+                        if (!assign.DesignatedPairs.Contains(dp))
+                        {
+                            assign.DesignatedPairs.Add(dp);
+                            uow.CommitChanges();
+                            currentSuccess++;
+                        }
                         ProgressMade?.Invoke(stepName,
                                 new ProgressMadeEventArgs(new ImportedItem()
                                 {
@@ -88,12 +82,10 @@ make aure not olt port*/
                         throw new Exception($"Bad Data assignment {row["ID"]} dpair {row["DESIGNATEDPAIR"]}");
                     }
                 }
-                else uow.RollbackTransaction();
             }
             catch (Exception ex)
             {
                 currentErrors++;
-                uow.RollbackTransaction();
                 ProgressMade?.Invoke(stepName,
                 new ProgressMadeEventArgs(new ImportedItem()
                 {
@@ -126,10 +118,11 @@ make aure not olt port*/
             {
                 using (var uow = new UnitOfWork(Tsdl))
                 {
+                    var gss = GlobalSystemSettings.GetInstanceFromDatabase(uow);
+                    if (gss.OLT_PortType == null) gss.OLT_PortType = uow.Query<PortType>()
+                                                      .FirstOrDefault(x => x.TypeName == "OLTPORT");
                     inlist.ForEach((row) =>
         {
-
-            uow.BeginTransaction();
             //"ID" assignmentid?, "OLTPORTID"
             //"ID" assignmentid?, "OLTPORTID"
             try
@@ -140,15 +133,17 @@ make aure not olt port*/
                     var sp = uow.Query<Port>()
          .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["OLTPORTID"] && /*
 make aure not olt port*/
-             x.SourceTable == splitterPortsTable);
+             x.PortType == gss.OLT_PortType);
                     var assign = uow.Query<Assignment>()
          .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ID"]);
                     if (sp != null & assign != null)
                     {
-                        assign.Resources.Add(sp);
-                        uow.CommitTransaction();
-                        uow.CommitChanges();
-                        currentSuccess++;
+                        if (!assign.Resources.Contains(sp))
+                        {
+                            assign.Resources.Add(sp);
+                            uow.CommitChanges();
+                            currentSuccess++;
+                        }
                         ProgressMade?.Invoke(stepName,
                                  new ProgressMadeEventArgs(new ImportedItem()
                                  {
@@ -160,12 +155,10 @@ make aure not olt port*/
                         throw new Exception($"Bad Data  ");
                     }
                 }
-                else uow.RollbackTransaction();
             }
             catch (Exception ex)
             {
                 currentErrors++;
-                uow.RollbackTransaction();
                 ProgressMade?.Invoke(stepName,
                   new ProgressMadeEventArgs(new ImportedItem()
                   {
@@ -199,14 +192,13 @@ make aure not olt port*/
             {
                 using (var uow = new UnitOfWork(Tsdl))
                 {
+                    var gss = GlobalSystemSettings.GetInstanceFromDatabase(uow);
+                    if (
+                    gss.SplitterPortType == null)
+                        gss.SplitterPortType = uow.Query<PortType>()
+                                                         .FirstOrDefault(x => x.TypeName == "SPLITTERPORT");
                     inlist.ForEach((row) =>
         {
-            if (Skip > 0)
-            {
-                Skip--;
-                return;
-            }
-            uow.BeginTransaction();
             //"ID" assignmentid?, "SPLITTERID"
             //"ID" assignmentid?, "SPLITTERID"
             try
@@ -214,18 +206,19 @@ make aure not olt port*/
                 if (!string.IsNullOrWhiteSpace(row["ID"]) &&
     !string.IsNullOrWhiteSpace(row["SPLITTERID"]))
                 {
+
                     var sp = uow.Query<Port>()
-         .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SPLITTERID"] && /*
-make aure not olt port*/
-             x.SourceTable == splitterPortsTable);
+         .FirstOrDefault(x => x.PortType == gss.SplitterPortType && x.ExternalSystemId.ToString() == row["SPLITTERID"]);
                     var assign = uow.Query<Assignment>()
          .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ID"]);
-                    if (sp != null & assign != null)
+                    if (sp != null && assign != null)
                     {
-                        assign.Resources.Add(sp);
-                        uow.CommitTransaction();
-                        uow.CommitChanges();
-                        currentSuccess++;
+                        if (!assign.Resources.Contains(sp))
+                        {
+                            assign.Resources.Add(sp);
+                            uow.CommitChanges();
+                            currentSuccess++;
+                        }
                         ProgressMade?.Invoke(stepName,
                                  new ProgressMadeEventArgs(new ImportedItem()
                                  {
@@ -237,12 +230,11 @@ make aure not olt port*/
                         throw new Exception($"Bad Data  ");
                     }
                 }
-                else uow.RollbackTransaction();
             }
             catch (Exception ex)
             {
+                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
                 currentErrors++;
-                uow.RollbackTransaction();
                 ProgressMade?.Invoke(stepName,
                   new ProgressMadeEventArgs(new ImportedItem()
                   {
@@ -260,7 +252,7 @@ make aure not olt port*/
         }
         public async Task AssignmentsPrimaryLocations()
         {
-            var stepName = "Assignments and rimary Locations";//new StackTrace().GetFrame(0).GetMethod().Name;// "Assignments and Primary Locations";
+            var stepName = "Assignments and Primary Locations";//new StackTrace().GetFrame(0).GetMethod().Name;// "Assignments and Primary Locations";
 
             List<List<Dictionary<string, string>>> Func(List<Dictionary<string, string>> inlist)
             {
@@ -352,13 +344,11 @@ make aure not olt port*/
             List<KeyValuePair<Guid, List<Guid>>> datalist = new List<KeyValuePair<Guid, List<Guid>>>();
             using (var uow = new UnitOfWork(Tsdl))
             {
+                totalRecordsToProcess = uow.Query<Cable>().Count();
+                //int n = 0;
                 foreach (var cab in uow.Query<Cable>())
                 {
-                    if (Skip > 0)
-                    {
-                        Skip--;
-                        break;
-                    }
+                    // if (n++ < 10)
                     datalist.Add(new KeyValuePair<Guid, List<Guid>>(cab.Oid,
                                                      cab.CablePairs
                     .OrderBy(x => x.PairNumber)
@@ -379,8 +369,6 @@ make aure not olt port*/
                     {
                         foreach (var item in data.Value)
                         {
-                            uow.BeginTransaction();
-
                             var cp = uow.GetObjectByKey<CablePair>(item);//cab.CablePairs.OrderBy(x => x.PairNumber)
 
 
@@ -412,7 +400,6 @@ make aure not olt port*/
                         string co = cab.CableName +
                         $" ({lowlevel}, {highlevel}) /XD {((highlevel) >= ceiling ? "--" : "(" + (highlevel + 1).ToString() + " - " + ceiling + ")")}";
                         cab.CallOut1 = co;
-                        uow.CommitTransaction();
                         uow.CommitChanges();
                         currentSuccess++;
                         ProgressMade?.Invoke(stepName,
@@ -425,7 +412,6 @@ make aure not olt port*/
                     }
                     catch (Exception ex)
                     {
-                        uow.RollbackTransaction();
                         currentErrors++;
                         ProgressMade?.Invoke(stepName,
                      new ProgressMadeEventArgs(new ImportedItem()
@@ -461,8 +447,30 @@ make aure not olt port*/
                     string sql = File.ReadAllText(cpairfilepath);
                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"\n\nCPAIRSQL\n\n{sql}");
                     WorkBeginning?.Invoke(stepName, EventArgs.Empty);
+                    var t = Task.FromResult(uow.ExecuteNonQuery(sql));
+                    while (!t.IsCompleted)
+                    {
+                        var current = ProgressBar.Value;
+                        double max = 10000000; double step = 100;
+                        Dispatcher.Invoke(() =>
+                        {
+                            max = ProgressBar.Maximum;
+                        });
+                        while (current < max)
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                ProgressBar.Value += step;
+                            });
+                            current += step;
+                            await Task.Delay(100);
+                        }
 
-                    await Task.FromResult(uow.ExecuteNonQuery(sql));
+                        Dispatcher.Invoke(() =>
+                    {
+                        ProgressBar.Value = 0;
+                    });
+                    }
                     WorkCompleted?.Invoke(stepName, EventArgs.Empty);
 
                     var after = uow.Query<PhysicalPair>().Count();
@@ -633,9 +641,9 @@ make aure not olt port*/
 
         }
 
-        public async Task Cables()
+        public async Task CablesWithOUTSpans()
         {
-            var stepName = $"Cabes and pairs w/o spans";//new StackTrace().GetFrame(0).GetMethod().Name;// "Cables";
+            var stepName = $"Cables w/o spans";//new StackTrace().GetFrame(0).GetMethod().Name;// "Cables";
 
             //this is so that the xpobject type is created  on one thread
             Func<List<Dictionary<string, string>>,
@@ -654,9 +662,9 @@ make aure not olt port*/
                  using (UnitOfWork uow = new UnitOfWork(Tsdl))
                  {
                      //do work
-                     cabdata.ForEach(async (row) =>
+                     cabdata.ForEach( (row) =>
                     {
-
+                         Task.Delay(1);
                         bool test = false;
                         //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
                         //make sure not imported already
@@ -667,33 +675,13 @@ make aure not olt port*/
                             PhysicalCable cable = new PhysicalCable(uow);
                             cable.Source = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
                             cable.Destination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
-                            //                          ImporterHelper.ProcessCable(uow,
-                            //row,
-                            //cabTable,
-                            //ProgressMade,
-                            //stepName);
+                            //                      
                             using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
                             {
-                                //var cpairs = odw.GetData(CABLEPAIR_Table, $" where CABLEID = '{row["CABLEID"]}'", $"Cabes and pairs w/o spans");
-                                //var cptask = ImporterHelper.DoCablePairs(uow, cable.ExternalSystemId, CABLEPAIR_Table, cpColumns);
-                                var pc = ImporterHelper.ProcessCable(cable, row, cabTable, ProgressMade, $"Cabes and pairs w/o spans");
-                                //await Task.WhenAll(cptask, pc);
-                                //var pairs = await Task.FromResult(cptask);
-                                //pairs.Result.ForEach((p) =>
-                                //{
-                                //    cable.CablePairs.Add(p);
-                                //    p.Cable = cable;
-                                //});
+                                var pc = ImporterHelper.ProcessCable(cable, row, cablesWithOUTSpansTable, ProgressMade, $"Cabes and pairs w/o spans");                             
                             }
                             uow.CommitChanges();
-                            //currentSuccess++;
-                            //ProgressMade?.Invoke(stepName,
-                            //    new ProgressMadeEventArgs(new ImportedItem()
-                            //    {
-                            //        SourceTable = cabTable,
-                            //        ImportStatus = "OK",
-                            //        Type = $"Cabes and pairs w/o spans"
-                            //    }));
+                            
                         }
                         else
                         {
@@ -701,7 +689,7 @@ make aure not olt port*/
                             ProgressMade?.Invoke(stepName,
                                  new ProgressMadeEventArgs(new ImportedItem()
                                  {
-                                     SourceTable = cabTable,
+                                     SourceTable = cablesWithOUTSpansTable,
                                      ImportStatus = "OK",
                                      Type = $"Already Exists {row["CABLEID"]}"
                                  }));
@@ -711,13 +699,13 @@ make aure not olt port*/
 
              };
             WorkBeginning?.Invoke(stepName, EventArgs.Empty);
-            await ProcessData(cabTable, cabColumns, func, processorAction);
+            await ProcessData(cablesWithOUTSpansTable, cabColumns, func, processorAction);
             //await ProcessData(X cabTable, cabColumns, func, processor_action);
             WorkCompleted?.Invoke(stepName, EventArgs.Empty);
 
         }
         private readonly object locker = new object();
-        public async Task CablesWithSpans()
+        public async Task CablesWITHSpans()
         {
             var stepName = "Cables and pairs with Spans";//new StackTrace().GetFrame(0).GetMethod().Name;// "Cables";
 
@@ -733,123 +721,116 @@ make aure not olt port*/
             };
             Action<List<Dictionary<string, string>>> processorAction = async (cabdata) =>
              {
+                 //each chuck of data should be rows completing one full cable
                  string cableID = cabdata?[0]["CABLEID"];
                  /*"FORC", "CABLEID", "COMMENTS", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID", "DROPCABLE",
-             "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION",
-             "INSTALLDATE"*/
+                "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION",
+                "INSTALLDATE"*/
                  Location MainSource = null;
                  Location MainDestination = null;
 
                  using (UnitOfWork uow = new UnitOfWork(Tsdl))
                  {
-
-                     Tuple<string, string> SRCDEST;
-                     lock (locker)
+                     if (!uow.Query<Cable>().Any(x => x.ExternalSystemId.ToString() == cableID))
                      {
-                         using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+                         Tuple<string, string> SRCDEST;
+                         lock (locker)
                          {
-                             SRCDEST = odw.GetSingleSourceDestLocationsFromSpanGroupData(cableID);
-                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"SRCDEST {SRCDEST.Item1} - {SRCDEST.Item2}");
-                         }
-                     }
-                     if (SRCDEST == null) return;
-                     string keyB = string.Empty, keyA = string.Empty;
-                     if (cabdata.Any(x => x["SOURCELOCATIONID"] == SRCDEST.Item1))
-                     {
-                         MainSource = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item1);
-                         NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainSource{ MainSource?.ExternalSystemId}");
-                         keyA = "SOURCELOCATIONID";
-                         MainDestination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item2);
-                         NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainDestination { MainDestination?.ExternalSystemId}");
-                         keyB = "DESTINATIONLOCATIONID";
-                     }
-                     else
-                     {
-                         MainDestination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item1);
-                         NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainDestination { MainDestination?.ExternalSystemId}");
-                         keyB = "SOURCELOCATIONID";
-                         MainSource = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item2);
-                         NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainSource{ MainSource?.ExternalSystemId}");
-                         keyA = "DESTINATIONLOCATIONID";
-                     }
-                     if (MainSource == null || MainDestination == null)
-                     {
-                         NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"XXXX MainSource == null || MainDestination == null {MainSource} == null || {MainDestination} == null");
-                         return;
-                     }
-                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"keyA {keyA} keyB {keyB}");
-                     cabdata.ForEach((x) => NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"cabData {string.Join(", ", x)}"));
-                     //now arrange rows in order src->dest-src-dest etc
-                     /*"FORC", "CABLEID", "COMMENTS", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID", "DROPCABLE",
-                 "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION",
-                 "INSTALLDATE"*/
-
-                     //  orderedData.Add(cabdata.FirstOrDefault(x => x["SOURCELOCATIONID"] == "" + MainDestination.ExternalSystemId || x["DESTINATIONLOCATIONID"] == "" + MainDestination.ExternalSystemId));
-
-                     bool test = false;
-                     //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
-                     //make sure not imported already
-                     test = (!uow.Query<Cable>()
-                  .Any(x => x.ExternalSystemId.ToString() == cableID));
-                     if (test)
-                     {
-                         int TotalLength = 0;
-                         //  do spans
-                         List<CableSpan> spans = new List<CableSpan>();
-                         foreach (var row in cabdata)
-                         {
-                             CableSpan span = new CableSpan(uow)
+                             using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
                              {
-                                 Source = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]),
-                                 Destination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]),
-                                 Length = int.TryParse(row["CABLELENGTH"], out int len) ? len : 0
-                             };
+                                 SRCDEST = odw.GetSingleSourceDestLocationsFromSpanGroupData(cableID);
+                                 NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"SRCDEST {SRCDEST.Item1} - {SRCDEST.Item2}");
+                             }
+                         }
+                         if (SRCDEST == null) return;
+                         string keyB = string.Empty, keyA = string.Empty;
+                         if (cabdata.Any(x => x["SOURCELOCATIONID"] == SRCDEST.Item1))
+                         {
+                             MainSource = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item1);
+                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainSource{ MainSource?.ExternalSystemId}");
+                             keyA = "SOURCELOCATIONID";
+                             MainDestination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item2);
+                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainDestination { MainDestination?.ExternalSystemId}");
+                             keyB = "DESTINATIONLOCATIONID";
+                         }
+                         else
+                         {
+                             MainDestination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item1);
+                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainDestination { MainDestination?.ExternalSystemId}");
+                             keyB = "SOURCELOCATIONID";
+                             MainSource = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == SRCDEST.Item2);
+                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($" MainSource{ MainSource?.ExternalSystemId}");
+                             keyA = "DESTINATIONLOCATIONID";
+                         }
+                         if (MainSource == null || MainDestination == null)
+                         {
+                             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"XXXX MainSource == null || MainDestination == null {MainSource} == null || {MainDestination} == null");
+                             //    return;
+                         }
+                         NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"keyA {keyA} keyB {keyB}");
+                         cabdata.ForEach((x) => NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"cabData {string.Join(", ", x)}"));
+                         //now arrange rows in order src->dest-src-dest etc
+                         /*"FORC", "CABLEID", "COMMENTS", "CABLESTATUS", "CABLELENGTH", "CABLEROUTE", "WORKORDERID", "DROPCABLE",
+                     "CABLETYPE", "CABLECLASS", "CABLESIZE", "SOURCELOCATIONID", "DESTINATIONLOCATIONID", "DESCRIPTION",
+                     "INSTALLDATE"*/
 
-                             spans.Add(span);
-                         };
-                         TotalLength = spans.Select(x => x.Length).Sum();
-                         //process the rest
-                         var cable = new PhysicalCable(uow)
+                         //  orderedData.Add(cabdata.FirstOrDefault(x => x["SOURCELOCATIONID"] == "" + MainDestination.ExternalSystemId || x["DESTINATIONLOCATIONID"] == "" + MainDestination.ExternalSystemId));
+
+                         bool test = false;
+                         //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
+                         //make sure not imported already
+                         test = (!uow.Query<Cable>()
+                      .Any(x => x.ExternalSystemId.ToString() == cableID));
+                         if (test)
                          {
-                             Source = MainSource,
-                             Destination = MainDestination,
-                             Length = TotalLength
-                         };
-                         //assign spans to cable
-                         spans.ForEach((I) => I.Cable = cable);
-                         cable.CableSpans.AddRange(spans);
-                         uow.CommitChanges();
-                         using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
-                         {
-                             //var cpairs = odw.GetData(CABLEPAIR_Table, $" where CABLEID = '{cableID}'", cpColumns);
-                             //var cptask = ImporterHelper.DoCablePairs(uow, cable.ExternalSystemId, CABLEPAIR_Table, cpColumns);
-                             var pc = ImporterHelper.ProcessCable(cable, cabdata[0], cabTable, ProgressMade, stepName);
-                             //await Task.WhenAll(cptask, pc);
-                             //var pairs = await Task.FromResult(cptask);
-                             //pairs.Result.ForEach((p) =>
-                             //{
-                             //    cable.CablePairs.Add(p);
-                             //    p.Cable = cable;
-                             //});
+                             int TotalLength = 0;
+                             //  do spans
+                             List<CableSpan> spans = new List<CableSpan>();
+                             foreach (var row in cabdata)
+                             {
+                                 CableSpan span = new CableSpan(uow)
+                                 {
+                                     Source = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]),
+                                     Destination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]),
+                                     Length = int.TryParse(row["CABLELENGTH"], out int len) ? len : 0
+                                 };
+
+                                 spans.Add(span);
+                             };
+                             TotalLength = spans.Select(x => x.Length).Sum();
+                             //process the rest
+                             var cable = new PhysicalCable(uow)
+                             {
+                                 Source = MainSource,
+                                 Destination = MainDestination,
+                                 Length = TotalLength
+                             };
+                             //assign spans to cable
+                             spans.ForEach((I) => I.Cable = cable);
+                             cable.CableSpans.AddRange(spans);
                              uow.CommitChanges();
+                             using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
+                             {
+                                 //var cpairs = odw.GetData(CABLEPAIR_Table, $" where CABLEID = '{cableID}'", cpColumns);
+                                 //var cptask = ImporterHelper.DoCablePairs(uow, cable.ExternalSystemId, CABLEPAIR_Table, cpColumns);
+                                 var pc = ImporterHelper.ProcessCable(cable, cabdata[0], cablesWithOUTSpansTable, ProgressMade, stepName);
+                                 //await Task.WhenAll(cptask, pc);
+                                 //var pairs = await Task.FromResult(cptask);
+                                 //pairs.Result.ForEach((p) =>
+                                 //{
+                                 //    cable.CablePairs.Add(p);
+                                 //    p.Cable = cable;
+                                 //});
+                                 uow.CommitChanges();
+                             }
+
                          }
 
                      }
-
 
 
                  }//end using
-                  //do work  each data set represent a grouped cable, (with spans)
 
-
-                 //  successfulCable++;
-                 ProgressMade?.Invoke(stepName,
-                  new ProgressMadeEventArgs(new ImportedItem()
-                  {
-                      SourceTable = cabTable,
-                      ImportStatus = "OK",
-                      Type = $"Already Exists {cableID}"
-                  }));
 
              };
 
@@ -858,19 +839,19 @@ make aure not olt port*/
             //await ProcessData(cabWithSpansTable, cabColumns, func, processorAction);
             using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
             {
-                var dataset = await Task.FromResult(odw.GetData(cabWithSpansTable, cabColumns));
+                var dataset = await Task.FromResult(odw.GetData(cablesWITHSpansTable, cabColumns));
                 TotalRecordsToProcess = dataset.Count;
                 if (dataset.Count > 0)
                 {
                     //  parter += mine;
                     List<List<Dictionary<string, string>>> datablocks = func(dataset);
-                    NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"datablocks : |{datablocks?.Count}| |{datablocks?[0]?.Count}|");
+                    //NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"datablocks : |{datablocks?.Count}| |{datablocks?[0]?.Count}|");
                     bool res = datablocks != null && datablocks.Count > 0;
                     int k = 0;
                     datablocks.ForEach(
                                        (ds) =>
                                        {
-                                           NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"PARTITION ITERATION {++k} of {datablocks.Count} containing ");
+                                           ////  NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"PARTITION ITERATION {++k} of {datablocks.Count} containing ");
                                            if (dataset == null)
                                            {
                                                MessageBox.Show(" line924                   if(dataset==null)MessageBox.Show(");
@@ -913,11 +894,7 @@ make aure not olt port*/
                     //do work
                     inlist.ForEach((row) =>
                         {
-                            if (Skip > 0)
-                            {
-                                Skip--;
-                                return;
-                            }
+
                             bool test = (!uow.Query<Conduit>().Any(x => x.ExternalSystemId.ToString() == row["ID"]));
                             if (test)
                             {
@@ -928,14 +905,7 @@ make aure not olt port*/
                             }
                             else
                             {
-                                //  successfulCable++;
-                                ProgressMade?.Invoke(stepName,
-                             new ProgressMadeEventArgs(new ImportedItem()
-                             {
-                                 SourceTable = conTable,
-                                 ImportStatus = "OK",
-                                 Type = $"Already Exists {row["CABLE"]}"
-                             }));
+                                   ProgressMade?.Invoke(stepName,                             null);
                             }
 
                             //make sure not imported already
@@ -1005,8 +975,9 @@ make aure not olt port*/
 
                         if (!string.IsNullOrWhiteSpace(row["SOURCE"]))
                         {
-                            cable.Source = uow.Query<Location>()
+                            cable.Wirecenter = uow.Query<Wirecenter>()
                     .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCE"]);
+                            cable.Source = cable.Wirecenter;
                         }
                         uow.CommitChanges();
                         currentSuccess++;
@@ -1065,6 +1036,9 @@ make aure not olt port*/
 
             using (var uow = new UnitOfWork(Tsdl))
             {
+                var dp = new DesignationPair(uow);
+                uow.CommitChanges();
+                uow.Delete(dp);
                 try
                 {
                     var before = uow.Query<DesignationPair>().Count();
@@ -1073,7 +1047,30 @@ make aure not olt port*/
                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"\n\ndPAIRSQL\n\n{sql}");
                     WorkBeginning?.Invoke(stepName, EventArgs.Empty);
 
-                    await Task.FromResult(uow.ExecuteNonQuery(sql));
+                    var t = Task.FromResult(uow.ExecuteNonQuery(sql));
+                    while (!t.IsCompleted)
+                    {
+                        var current = ProgressBar.Value;
+                        double max = 10000000; double step = 100;
+                        Dispatcher.Invoke(() =>
+                        {
+                            max = ProgressBar.Maximum;
+                        });
+                        while (current < max)
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                ProgressBar.Value += step;
+                            });
+                            current += step;
+                            await Task.Delay(100);
+                        }
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            ProgressBar.Value = 0;
+                        });
+                    }
                     WorkCompleted?.Invoke(stepName, EventArgs.Empty);
 
                     var after = uow.Query<DesignationPair>().Count();
@@ -1193,16 +1190,25 @@ make aure not olt port*/
                 DXMessageBox.Show($"WTF couldn't make file???????\n{ex}");
             }
         }
-        public async Task DesignationPairsCablePairLink()
+        public async Task CablePairDesignationPairLink()
         {
-            var stepName = "DesignationPairsCablePairLink";// new StackTrace().GetFrame(0).GetMethod().Name;
+            var stepName = "CablePairDesignationPairLink";// new StackTrace().GetFrame(0).GetMethod().Name;
 
             List<List<Dictionary<string, string>>> Func(List<Dictionary<string, string>> inlist)
             {
                 List<List<Dictionary<string, string>>> ret = new List<List<Dictionary<string, string>>>();
-                foreach (var cableid in inlist.Select(x => x["CABLEID"]).Distinct())
+                var cableids = inlist.Select(x => x["CABLEID"]).Distinct();
+                List<Dictionary<string, string>> buffer = new List<Dictionary<string, string>>();
+                foreach (var cableid in cableids)
                 {
-                    ret.Add(inlist.Where(x => x["CABLEID"] == cableid).ToList());
+
+                    buffer.AddRange(inlist.Where(x => x["CABLEID"] == cableid));
+
+                    if (buffer.Count > 1000)
+                    {
+                        ret.Add(buffer);
+                        buffer = new List<Dictionary<string, string>>();
+                    }
                 }
                 return ret;
             }
@@ -1212,11 +1218,7 @@ make aure not olt port*/
             {
                 foreach (var row in inlist)
                 {
-                    if (Skip > 0)
-                    {
-                        Skip--;
-                        return;
-                    }
+
                     using (var uow = new UnitOfWork(Tsdl))
                     {
                         try
@@ -1226,7 +1228,7 @@ make aure not olt port*/
                             CablePair cp = null;
 
                             //make sure data is populated and hasn't been processed previously
-
+                            //"PAIRID", "COUNT", "STATUS", "CABLEID", "TU_ID", "LOGICALCOUNTID", "DESIGNATIONGROUPID", "LOGICALCOUNT", "DESIGNATIONGROUPNAME"
                             if (string.IsNullOrWhiteSpace(row["PAIRID"]) ||
                                 !int.TryParse(row["PAIRID"], out int cpid))
                             {
@@ -1234,7 +1236,8 @@ make aure not olt port*/
                             }
                             if (row["LOGICALCOUNTID"] == "1") continue;//skip
 
-                            ;
+
+                            cpid = int.Parse(row["PAIRID"]);
                             if ((cp = uow.Query<CablePair>().FirstOrDefault(x => x.ExternalSystemId == cpid)) == null)
                                 throw new Exception($"Cable Pair {cpid} not found"); // 
                             if (!string.IsNullOrWhiteSpace(cp.SourceType))
@@ -1256,11 +1259,9 @@ make aure not olt port*/
                             else
                             {
                                 DesignationPair dp = null;
-                                if (int.TryParse(row["LOGICALCOUNTID"], out int dpid) &&
-                            (dp =
-                                uow.Query<DesignationPair>()
-                                    .FirstOrDefault(x => x.ExternalSystemId == dpid)) !=
-                            null)
+                                if (int.TryParse(row["LOGICALCOUNTID"], out int dpid))
+                                    dp = uow.Query<DesignationPair>().FirstOrDefault(x => x.ExternalSystemId == dpid);
+                                if (dp != null)
                                 {
                                     cp.SourceType = "CablePairLinked"; //means processed
                                     cp.SourceTable = cpdpTable;
@@ -1288,7 +1289,6 @@ make aure not olt port*/
                         }
                         catch (Exception ex)
                         {
-                            uow.RollbackTransaction();
                             currentErrors++;
                             ProgressMade?.Invoke(stepName,
                     new ImporterHelper.ProgressMadeEventArgs(new ImportedItem()
@@ -1347,16 +1347,7 @@ make aure not olt port*/
                                 {
                                     currentSuccess++;
                                     ProgressMade?.Invoke(stepName,
-                                 new ProgressMadeEventArgs(new ImportedItem()
-                                 {
-                                     Id = row["ENTITYID"],
-                                     SourceTable = junkTable,
-
-                                     ImportStatus = "Success",
-
-                                     Type = "Junction",
-                                     SubType = row["ENTITYTYPE"]
-                                 }));
+                                 new ProgressMadeEventArgs(new ImportedItem()));
                                 }
                                 else
                                 {
@@ -1403,10 +1394,10 @@ make aure not olt port*/
             Func<List<Dictionary<string, string>>, List<List<Dictionary<string, string>>>> func = (inlist) =>
             {
                 List<List<Dictionary<string, string>>> ret = new List<List<Dictionary<string, string>>>();
-                var splitterCodes = (from x in inlist select x["SplitterID"]).Distinct();
+                var splitterCodes = (from x in inlist select x["SPLITTERID"]).Distinct();
                 splitterCodes.ForEach((oc) =>
         {
-            ret.Add(inlist.Where(x => x["SplitterID"] == oc).ToList());
+            ret.Add(inlist.Where(x => x["SPLITTERID"] == oc).ToList());
         });
                 return ret;
             };
@@ -1416,8 +1407,16 @@ make aure not olt port*/
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
-                    Guid? splittertypeOid = GlobalSystemSettings.GetInstanceFromDatabase(puow).SplitterEquipmentType?.Oid;
-                    var olttypeOid = GlobalSystemSettings.GetInstanceFromDatabase(puow).OLT_EquipmentType.Oid;
+                    var gss = GlobalSystemSettings.GetInstanceFromDatabase(puow);
+                    if (gss.SplitterEquipmentType == null)
+                        gss.SplitterEquipmentType = puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "SPLITTER");
+                    Guid? splittertypeOid = gss.SplitterEquipmentType.Oid;
+                    if (gss.OLT_EquipmentType == null)
+                        gss.OLT_EquipmentType = puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "OLT");
+                    Guid? olttypeOid = gss.OLT_EquipmentType.Oid;
+
+                    if (splittertypeOid == null || olttypeOid == null)
+                        throw new Exception("Missing critical data dummy");
                     foreach (var row in inlist)
                     {
                         try
@@ -1426,34 +1425,52 @@ make aure not olt port*/
                             //"SPLITTERID", "INCABLEID", "INCABLENAME", "INCABLEOBJECTREF", "INCOUNTID", "INCOUNT", "OLTID"
                             //"", "INCABLEID", "INCABLENAME", "INCABLEOBJECTREF", "INCOUNTID", "INCOUNT", "OLTID"
                             var splitter = puow.Query<Equipment>().FirstOrDefault(x => x.EquipmentType.Oid == splittertypeOid && string.Empty + x.ExternalSystemId == row["SPLITTERID"]);
-                            var olt = puow.Query<Equipment>().FirstOrDefault(x => x.EquipmentType.Oid == olttypeOid && string.Empty + x.ExternalSystemId == row["OLTID"]);
+                            var olt = puow.Query<Equipment>().FirstOrDefault(x => /*x.EquipmentType.Oid == olttypeOid &&*/ string.Empty + x.ExternalSystemId == row["OLTID"]);
+
                             if (olt != null && splitter != null)
                             {
-                                olt.SubLocations.Add(splitter);
-                                splitter.ServingLocations.Add(olt);
+                                if (!olt.SubLocations.Contains(splitter))
+                                {
+                                    olt.SubLocations.Add(splitter);
+                                    splitter.ServingLocations
+                                        .Add(olt);
+                                }
+                            }
+                            else
+                            {
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"!!! OLT {olt} OR SPLITTER {splitter} NULL");
                             }
                             puow.CommitChanges();
 
-                            var pair = puow.Query<DesignationPair>().FirstOrDefault(x => string.Empty + x.ExternalSystemId == row["INCOUNTID"]);
+                            var pair = puow.Query<DesignationPair>()
+                                .FirstOrDefault(x => string.Empty +
+                                    x.ExternalSystemId ==
+                                    row["INCOUNTID"]);
                             if (pair != null && splitter != null)
-                                pair.Locations.Add(splitter);
+                            {
+                                if (!pair.Locations.Contains(splitter))
+                                    pair.Locations.Add(splitter);
+                            }
                             puow.CommitChanges();
                             currentSuccess++;
                             ProgressMade?.Invoke(stepName,
-                               new ProgressMadeEventArgs(new ImportedItem()
-                               {
-                                   RecordStatus = "Success"
-                               }));
+                                                 new ProgressMadeEventArgs(new ImportedItem()
+                                                 {
+                                                     RecordStatus = "Success"
+                                                 }));
                         }
                         catch (Exception ex)
                         {
                             currentErrors++;
                             ProgressMade?.Invoke(stepName,
-                               new ProgressMadeEventArgs(new ImportedItem()
-                               {
-                                   RecordStatus = $"Exception {ex.Message}"
-                               }));
-                            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
+                                                 new ProgressMadeEventArgs(new ImportedItem()
+                                                 {
+                                                     RecordStatus =
+                            $"Exception {ex.Message}"
+                                                 }));
+                            NewNetServices.Module.Core
+                                .StaticHelperMethods
+                                .WriteOut($"{ex}");
                         }
                     }
                 }
@@ -1485,57 +1502,71 @@ make aure not olt port*/
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
-                    var olttypeOid = Guid.Empty;
+                    oltPortTypeOid = Guid.Empty;
                     if (!puow.Query<PortType>().Any(x => x.TypeName == "OLTPORT"))
                     {
                         var pt = new PortType(puow) { TypeName = "OLTPORT" };
                         puow.CommitChanges();
-                        olttypeOid = pt.Oid;
+                        oltPortTypeOid = pt.Oid;
                     }
-                    else olttypeOid = puow.Query<PortType>().FirstOrDefault(x => x.TypeName == "OLTPORT").Oid;
+                    else oltPortTypeOid = puow.Query<PortType>().FirstOrDefault(x => x.TypeName == "OLTPORT").Oid;
+                    if (oltPortTypeOid == Guid.Empty) throw new Exception("No porttype with typename = OLTPORT");
+
+
+                    if (!puow.Query<ResourceType>().Any(x => x.TypeName == "PORT"))
+                    {
+                        var pt = new ResourceType(puow) { TypeName = "PORT" };
+                        puow.CommitChanges();
+                        portResourceTypeOid = pt.Oid;
+                    }
+                    else portResourceTypeOid = puow.Query<ResourceType>().FirstOrDefault(x => x.TypeName == "PORT").Oid;
+                    if (portResourceTypeOid == Guid.Empty) throw new Exception("No resourcetype with typename = PORT");
+
 
                     foreach (var row in inlist)
                     {
-                        //"OLTID", "OLTPORTID", "OLTPORTNUM"
-                        //" ", " ", "OLTPORTNUM"
-                        puow.BeginTransaction();
-                        try
+                        if (!puow.Query<Port>().Any(x => x.PortType.Oid == oltPortTypeOid && x.ExternalSystemId.ToString() == row["OLTPORTID"]))
                         {
-                            var oltPort = new Port(puow);
-                            //set to olt type default
-                            oltPort.PortType = puow.GetObjectByKey<PortType>(olttypeOid);
-                            oltPort.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "PORT");
-                            oltPort.ExternalSystemId = int.TryParse(row["OLTPORTID"], out int oltid) ? oltid : 0;
-                            oltPort.Equipment = puow.Query<Equipment>()
-                     .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["OLTID"]);
-                            oltPort.SourceTable = oltPortsTable;
-                            oltPort.Status = GlobalSystemSettings.GetInstanceFromDatabase(puow)
-                 .DefaultLocationStatusUnknown;
-                            oltPort.Number = int.TryParse(row["OLTPORTNUM"], out int pnum) ? pnum : 0; ;
-                            oltPort.LocationName = row["OLTPORTNUM"];
-                            //olt.Rack = row["RACK_CODE"];
-                            //olt.RackNum = int.TryParse(row["SUB_RACK_CODE"], out int src) ? src : 0;
-                            //olt.Shelf = row["CARD_NUM"];
-                            //olt.ShelfNum = int.TryParse(row["PORT_POSITION"], out int sn) ? sn : 0;
-                            oltPort.Wirecenter = oltPort.Equipment?.Wirecenter;// puow.Query<Wirecenter>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_SITE_ID"]);
+                            //"OLTID", "OLTPORTID", "OLTPORTNUM"
+                            //" ", " ", "OLTPORTNUM" 
+                            try
+                            {
+                                var oltPort = new Port(puow);
+                                //set to olt type default
+                                oltPort.PortType = puow.GetObjectByKey<PortType>(oltPortTypeOid);
+                                oltPort.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "Port");
+                                oltPort.Type = puow.GetObjectByKey<ResourceType>(portResourceTypeOid);
+                                oltPort.ExternalSystemId = int.TryParse(row["OLTPORTID"], out int oltid) ? oltid : 0;
+                                oltPort.Equipment = puow.Query<Equipment>()
+                         .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["OLTID"]);
+                                oltPort.SourceTable = oltPortsTable;
+                                oltPort.Status = GlobalSystemSettings.GetInstanceFromDatabase(puow)
+                     .DefaultLocationStatusUnknown;
+                                oltPort.Number = int.TryParse(row["OLTPORTNUM"], out int pnum) ? pnum : 0; ;
+                                oltPort.LocationName = row["OLTPORTNUM"];
+                                //olt.Rack = row["RACK_CODE"];
+                                //olt.RackNum = int.TryParse(row["SUB_RACK_CODE"], out int src) ? src : 0;
+                                //olt.Shelf = row["CARD_NUM"];
+                                //olt.ShelfNum = int.TryParse(row["PORT_POSITION"], out int sn) ? sn : 0;
+                                oltPort.Wirecenter = oltPort.Equipment?.Wirecenter;// puow.Query<Wirecenter>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_SITE_ID"]);
 
-                            puow.CommitTransaction();
-                            puow.CommitChanges();
-                            currentSuccess++;
-                            ProgressMade?.Invoke(stepName,
-                                      new ProgressMadeEventArgs(new ImportedItem()
-                                      { RecordStatus = "Success" }));
+                                puow.CommitChanges();
+                                currentSuccess++;
+                                ProgressMade?.Invoke(stepName,
+                                          new ProgressMadeEventArgs(new ImportedItem()
+                                          { RecordStatus = "Success" }));
 
+                            }
+                            catch (Exception ex)
+                            {
+                                currentErrors++;
+                                ProgressMade?.Invoke(stepName,
+                                         new ProgressMadeEventArgs(new ImportedItem()
+                                         { RecordStatus = $"Exception {ex.Message}" }));
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            currentErrors++;
-                            puow.RollbackTransaction();
-                            ProgressMade?.Invoke(stepName,
-                                     new ProgressMadeEventArgs(new ImportedItem()
-                                     { RecordStatus = $"Exception {ex.Message}" }));
-                            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
-                        }
+                        else { ProgressMade?.Invoke(stepName, null); }
 
                     }
 
@@ -1572,13 +1603,25 @@ make aure not olt port*/
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
-                    var olttypeOid = Guid.Empty;
+                    oltTypeOid = Guid.Empty;
                     if (!puow.Query<EquipmentType>().Any(x => x.TypeName == "OLT"))
                     {
                         var st = new EquipmentType(puow) { TypeName = "OLT", TypeDescription = "OLT" };
-                        olttypeOid = st.Oid;
+                        oltTypeOid = st.Oid;
                         puow.CommitChanges();
                     }
+                    else oltTypeOid = puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "OLT").Oid;
+
+
+                    if (!puow.Query<ResourceType>().Any(x => x.TypeName == "EQUIPMENT"))
+                    {
+                        var pt = new ResourceType(puow) { TypeName = "EQUIPMENT" };
+                        puow.CommitChanges();
+                        equipmentResourceTypeOid = pt.Oid;
+                    }
+                    else equipmentResourceTypeOid = puow.Query<ResourceType>().FirstOrDefault(x => x.TypeName == "EQUIPMENT").Oid;
+                    if (equipmentResourceTypeOid == Guid.Empty) throw new Exception("No resourcetype with typename = EQUIPMENT");
+
                     //the ones that aren't really olt
                     if (!puow.Query<EquipmentType>().Any(x => x.TypeName == "VDSL"))
                     {
@@ -1589,10 +1632,8 @@ make aure not olt port*/
                     foreach (var row in inlist)
                     {
 
-                        if (!puow.Query<Equipment>().Any(x => x.ExternalSystemId.ToString() == row["OLT_ID"]))
+                        if (!puow.Query<Equipment>().Any(x => x.SourceTable == oltTable && x.ExternalSystemId.ToString() == row["OLT_ID"]))
                         {
-
-
                             try
                             {
 
@@ -1600,8 +1641,10 @@ make aure not olt port*/
                                 var olt = new Equipment(puow);
 
                                 //set to olt type default
+                                olt.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "Equipment");
+                                olt.Type = puow.GetObjectByKey<ResourceType>(equipmentResourceTypeOid);
                                 olt.EquipmentType = row["OLT_CODE"].Contains("VDSL") ? puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "VDSL") : puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "OLT");
-                                olt.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "EQUIPMENT");
+
                                 olt.ExternalSystemId = int.TryParse(row["OLT_ID"], out int oltid) ? oltid : 0;
                                 olt.SourceTable = oltTable;
                                 olt.LocationName = row["OLTNAME"];
@@ -1629,12 +1672,7 @@ make aure not olt port*/
                                 NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
                             }
                         }//if doesn't exist
-                        else
-                        {
-                            ProgressMade?.Invoke(stepName,
-                                                                            new ProgressMadeEventArgs(new ImportedItem()
-                                                                            { RecordStatus = "Exists" }));
-                        }
+                        else ProgressMade?.Invoke(stepName, null);
                     }
 
                 }
@@ -1664,30 +1702,24 @@ make aure not olt port*/
             {
                 using (var uow = new UnitOfWork(Tsdl))
                 {
+                    var gss = GlobalSystemSettings.GetInstanceFromDatabase(uow);
+                    if (
+                    gss.SplitterPortType == null)
+                        gss.SplitterPortType = uow.Query<PortType>()
+                                                         .FirstOrDefault(x => x.TypeName == "SPLITTERPORT");
                     inlist.ForEach((row) =>
         {
-            if (Skip > 0)
-            {
-                Skip--;
-                return;
-            }
-            uow.BeginTransaction();
             //"SPLITTERPORTID", "DESIGNATIONPAIRID"
             try
             {
                 if (!string.IsNullOrWhiteSpace(row["SPLITTERPORTID"]) &&
         !string.IsNullOrWhiteSpace(row["DESIGNATIONPAIRID"]))
                 {
-                    var sp = uow.Query<Port>()
-        .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SPLITTERPORTID"] && /*
-make aure not olt port*/
-            x.SourceTable == splitterPortsTable);
-                    var dp = uow.Query<DesignationPair>()
-        .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESIGNATIONPAIRID"]);
+                    var sp = uow.Query<Port>().FirstOrDefault(x => x.PortType == gss.SplitterPortType && x.ExternalSystemId.ToString() == row["SPLITTERPORTID"]);
+                    var dp = uow.Query<DesignationPair>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESIGNATIONPAIRID"]);
                     if (sp != null & dp != null)
                     {
                         dp.Source = sp;
-                        uow.CommitTransaction();
                         uow.CommitChanges();
                         currentSuccess++;
                         ProgressMade?.Invoke(stepName,
@@ -1701,7 +1733,6 @@ make aure not olt port*/
                         throw new Exception($"Bad Data SPLITTERPORTID {row["SPLITTERPORTID"]} dpair{row["DESIGNATIONPAIRID"]}");
                     }
                 }
-                else uow.RollbackTransaction();
             }
             catch (Exception ex)
             {
@@ -1746,52 +1777,68 @@ make aure not olt port*/
                 using (var puow = new UnitOfWork(Tsdl))
                 {
                     splitterPorttypeOid = Guid.Empty;
+                    portResourceTypeOid = Guid.Empty;
                     if (!puow.Query<PortType>().Any(x => x.TypeName == "SPLITTERPORT"))
                     {
                         var pt = new PortType(puow) { TypeName = "SPLITTERPORT" };
                         puow.CommitChanges();
                         splitterPorttypeOid = pt.Oid;
                     }
+                    else splitterPorttypeOid = puow.Query<PortType>().FirstOrDefault(x => x.TypeName == "SPLITTERPORT").Oid;
+                    if (!puow.Query<ResourceType>().Any(x => x.TypeName == "PORT"))
+                    {
+                        var pt = new ResourceType(puow) { TypeName = "PORT" };
+                        puow.CommitChanges();
+                        portResourceTypeOid = pt.Oid;
+                    }
+                    else portResourceTypeOid = puow.Query<ResourceType>().FirstOrDefault(x => x.TypeName == "PORT").Oid;
+                    if (portResourceTypeOid == Guid.Empty) throw new Exception("No resourcetype with typename = PORT");
+
 
                     foreach (var row in inlist)
                     {
-
-                        try
+                        if (!puow.Query<Port>().Any(x => x.PortType.Oid == splitterPorttypeOid && x.ExternalSystemId.ToString() == row["ID"]))
                         {
-                            var splitterPort = new Port(puow);
-                            //set to SplitterPort type default
-                            //"ID", "NAME", "STATUS", "CR_EQUIPMENT_ID"
-                            //" ", " ", " ", ""
-                            splitterPort.PortType = puow.GetObjectByKey<PortType>(splitterPorttypeOid);
-                            splitterPort.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "PORT");
-                            splitterPort.ExternalSystemId = int.TryParse(row["ID"], out int splitterPortid)
-                ? splitterPortid
-                : 0;
-                            splitterPort.SourceTable = splitterPortsTable;
-                            splitterPort.LocationName = row["NAME"];
-                            splitterPort.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
-                ? puow.GetObjectByKey<LocationStatus>(NewNetServices.Module.Core.DefaultFields
-                .GetStatus<LocationStatus>(puow, row["STATUS"]))
-                : null;
-                            splitterPort.Equipment = puow.Query<Equipment>()
-                .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_EQUIPMENT_ID"]);
 
-                            splitterPort.Wirecenter = splitterPort.Equipment?.Wirecenter;
+                            try
+                            {
+                                var splitterPort = new Port(puow);
+                                //set to SplitterPort type default
+                                //"ID", "NAME", "STATUS", "CR_EQUIPMENT_ID"
+                                //" ", " ", " ", ""
+                                splitterPort.PortType = puow.GetObjectByKey<PortType>(splitterPorttypeOid);
+                                splitterPort.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "Port");
+                                splitterPort.Type = puow.GetObjectByKey<ResourceType>(portResourceTypeOid);
+                                splitterPort.ExternalSystemId = int.TryParse(row["ID"], out int splitterPortid)
+                    ? splitterPortid
+                    : 0;
+                                splitterPort.SourceTable = splitterPortsTable;
+                                splitterPort.LocationName = row["NAME"];
+                                splitterPort.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
+                    ? puow.GetObjectByKey<LocationStatus>(NewNetServices.Module.Core.DefaultFields
+                    .GetStatus<LocationStatus>(puow, row["STATUS"]))
+                    : null;
+                                splitterPort.Equipment = puow.Query<Equipment>()
+                    .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["CR_EQUIPMENT_ID"]);
 
-                            puow.CommitChanges();
-                            currentSuccess++;
-                            ProgressMade?.Invoke(stepName,
-                             new ProgressMadeEventArgs(new ImportedItem()
-                             { RecordStatus = "Success" }));
+                                splitterPort.Wirecenter = splitterPort.Equipment?.Wirecenter;
+
+                                puow.CommitChanges();
+                                currentSuccess++;
+                                ProgressMade?.Invoke(stepName,
+                                 new ProgressMadeEventArgs(new ImportedItem()
+                                 { RecordStatus = "Success" }));
+                            }
+                            catch (Exception ex)
+                            {
+                                currentErrors++;
+                                ProgressMade?.Invoke(stepName,
+                                 new ProgressMadeEventArgs(new ImportedItem()
+                                 { RecordStatus = $"Exception {ex.Message}" }));
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            currentErrors++;
-                            ProgressMade?.Invoke(stepName,
-                             new ProgressMadeEventArgs(new ImportedItem()
-                             { RecordStatus = $"Exception {ex.Message}" }));
-                            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
-                        }
+                        else { ProgressMade?.Invoke(stepName, null); }
                     }
                 }
             };
@@ -1883,8 +1930,12 @@ make aure not olt port*/
         //                 ? (new CableClass(uow) { TypeName = TypeName }).Oid
         //                 : (new ConduitClass(uow) { TypeName = TypeName }).Oid);
         //         }
-        public Guid splittertypeOid = Guid.Empty;
+        public Guid splitterEquipmentTypeOid = Guid.Empty;
         public Guid splitterPorttypeOid = Guid.Empty;
+        public Guid oltPortTypeOid = Guid.Empty;
+        public Guid oltTypeOid = Guid.Empty;
+        public Guid portResourceTypeOid = Guid.Empty;
+        public Guid equipmentResourceTypeOid = Guid.Empty;
         public async Task Splitters()
         {
             var stepName = "Splitters";// new StackTrace().GetFrame(0).GetMethod().Name;
@@ -1905,59 +1956,76 @@ make aure not olt port*/
             {
                 using (var puow = new UnitOfWork(Tsdl))
                 {
-                    splittertypeOid = Guid.Empty;
+                    splitterEquipmentTypeOid = Guid.Empty;
                     if (!puow.Query<EquipmentType>().Any(x => x.TypeName == "SPLITTER"))
                     {
                         var st = new EquipmentType(puow) { TypeName = "SPLITTER" };
-                        splittertypeOid = st.Oid;
+                        splitterEquipmentTypeOid = st.Oid;
                         puow.CommitChanges();
                     }
+                    else splitterEquipmentTypeOid = puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "SPLITTER").Oid;
 
+                    if (!puow.Query<ResourceType>().Any(x => x.TypeName == "EQUIPMENT"))
+                    {
+                        var pt = new ResourceType(puow) { TypeName = "EQUIPMENT" };
+                        puow.CommitChanges();
+                        equipmentResourceTypeOid = pt.Oid;
+                    }
+                    else equipmentResourceTypeOid = puow.Query<ResourceType>().FirstOrDefault(x => x.TypeName == "EQUIPMENT").Oid;
+                    if (equipmentResourceTypeOid == Guid.Empty) throw new Exception("No resourcetype with typename = EQUIPMENT");
                     foreach (var row in inlist)
                     {
-                        try
+                        if (!puow.Query<Equipment>()
+                            .Any(x => x.EquipmentType != null && x.EquipmentType.Oid == splitterEquipmentTypeOid &&
+                                x.ExternalSystemId.ToString() == row["ID"]))
                         {
-                            var splitter = new Equipment(puow);
-                            //set to Splitter type default
-                            //"ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE", "ADDRESS_ID"
-                            //"ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE"
-                            //"", "", "OBJ_REF_ID", "EQ_HOLDER_ID", " ", " ", " "
-                            //"", "", "OBJ_REF_ID", "EQ_HOLDER_ID", "", "", "CREATION_DATE"
-                            //TODO: 
-                            splitter.EquipmentType = puow.Query<EquipmentType>().FirstOrDefault(x => x.TypeName == "SPLITTER");// (splittertypeOid);
-                            splitter.LocationType = puow.Query<LocationType>().FirstOrDefault(x => x.TypeName == "EQUIPMENT");
-                            splitter.ExternalSystemId = int.TryParse(row["ID"], out int splitterid) ? splitterid : 0;
-                            splitter.SourceTable = splitterTable;
-                            splitter.LocationName = row["NAME"];
-                            splitter.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
-                ? NewNetServices.Module.Core.DefaultFields
-                .GetBusinessObjectDefault<LocationStatus>(puow, "StatusName", row["STATUS"])
-                : null;
-                            if (!string.IsNullOrWhiteSpace(row["CREATION_DATE"]))
-                                splitter.DatePlaced = DateTime.TryParse(row["CREATION_DATE"], out DateTime dt)
-                    ? dt
-                    : DateTime.Now;
-
-                            splitter.Wirecenter = puow.Query<Wirecenter>()
-                .FirstOrDefault(x => x.SpaceID == row["CR_SITE_ID"]);
-                            if (!string.IsNullOrWhiteSpace(row["ADDRESS_ID"]))
+                            try
                             {
-                                splitter.Address = puow.Query<Address>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ADDRESS_ID"]);
+                                var splitter = new Equipment(puow);
+                                //set to Splitter type default
+                                //("ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE", "ADDRESS_ID")
+                                //"ID", "NAME", "OBJ_REF_ID", "EQ_HOLDER_ID", "CR_SITE_ID", "STATUS", "CREATION_DATE"
+                                //"", "", "OBJ_REF_ID", "EQ_HOLDER_ID", " ", " ", " "
+                                //"", "", "OBJ_REF_ID", "EQ_HOLDER_ID", "", "", "CREATION_DATE"
+                                splitter.ExternalSystemId = int.TryParse(row["ID"], out int id) ? id : 0;
+                                splitter.LocationType = puow.Query<LocationType>()
+                                    .FirstOrDefault(x => x.TypeName == "Equipment");
+                                splitter.Type = puow.GetObjectByKey<ResourceType>(equipmentResourceTypeOid);
+                                splitter.EquipmentType = puow.GetObjectByKey<EquipmentType>(splitterEquipmentTypeOid);// (splittertypeOid);splitter.ExternalSystemId = int.TryParse(row["ID"], out int splitterid) ? splitterid : 0;
+                                splitter.SourceTable = splitterTable;
+                                splitter.LocationName = row["NAME"];
+                                splitter.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
+                                    ? NewNetServices.Module.Core.DefaultFields
+                                        .GetBusinessObjectDefault<LocationStatus>(puow, "StatusName", row["STATUS"])
+                                    : null;
+                                if (!string.IsNullOrWhiteSpace(row["CREATION_DATE"]))
+                                    splitter.DatePlaced = DateTime.TryParse(row["CREATION_DATE"], out DateTime dt)
+                                        ? dt
+                                        : DateTime.Now;
+
+                                splitter.Wirecenter = puow.Query<Wirecenter>()
+                                    .FirstOrDefault(x => x.SpaceID == row["CR_SITE_ID"]);
+                                if (!string.IsNullOrWhiteSpace(row["ADDRESS_ID"]))
+                                {
+                                    splitter.Address = puow.Query<Address>()
+                                        .FirstOrDefault(x => x.ExternalSystemId.ToString() == row["ADDRESS_ID"]);
+                                }
+                                puow.CommitChanges();
+                                currentSuccess++;
+                                ProgressMade?.Invoke(stepName,
+                                                     new ProgressMadeEventArgs(new ImportedItem()
+                                                     { RecordStatus = "Success" }));
                             }
-                            puow.CommitChanges();
-                            currentSuccess++;
-                            ProgressMade?.Invoke(stepName,
-                            new ProgressMadeEventArgs(new ImportedItem()
-                            { RecordStatus = "Success" }));
+                            catch (Exception ex)
+                            {
+                                currentErrors++;
+                                ProgressMade?.Invoke(stepName,
+                                                     new ProgressMadeEventArgs(new ImportedItem()
+                                                     { RecordStatus = $"Exception {ex.Message}" }));
+                                NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            currentErrors++;
-                            ProgressMade?.Invoke(stepName,
-                            new ProgressMadeEventArgs(new ImportedItem()
-                            { RecordStatus = $"Exception {ex.Message}" }));
-                            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"{ex}");
-                        }
+                        else ProgressMade?.Invoke(stepName, null);
                     }
                 }
             };
