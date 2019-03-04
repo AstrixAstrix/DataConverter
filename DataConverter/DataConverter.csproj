@@ -126,7 +126,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="MainWindow.xaml">
+    <Page Include="DataConvert.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -137,8 +137,8 @@
     <Compile Include="Class1.cs" />
     <Compile Include="CountCountOccurancesExtMethod.cs" />
     <Compile Include="ImporterHelper.cs" />
-    <Compile Include="MainWindow.xaml.cs">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
+    <Compile Include="DataConvert.xaml.cs">
+      <DependentUpon>DataConvert.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
