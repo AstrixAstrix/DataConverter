@@ -34,7 +34,8 @@ namespace AddressSubscriberImport
             }
             return ret;
         }
-        public static void SetThreadSafeDataLayer(out ThreadSafeDataLayer Tsdl, string conn)
+        
+    public static void SetThreadSafeDataLayer(out ThreadSafeDataLayer Tsdl, string conn)
         {
             // Code that runs on application startup
             DevExpress.Xpo.Metadata.XPDictionary dict =

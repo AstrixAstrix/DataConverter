@@ -35,9 +35,9 @@ namespace DataConverter
 
 
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for DataConvert.xaml
     /// </summary>
-    public partial class MainWindow : DXWindow
+    public partial class DataConvert : DXWindow
     {
         private const int MAXHANDLES = 64;
 
@@ -67,7 +67,7 @@ namespace DataConverter
         private long totalRecordsToProcess;
         private MyTuple<long, long> tuple = new MyTuple<long, long>();
 
-        public MainWindow()
+        public DataConvert()
         {
             InitializeComponent();
         }
@@ -537,7 +537,7 @@ namespace DataConverter
                 pl.ForEach(
                                    (dataset) =>
                  {
-                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"PARTITION ITERATION {++k} of {pl.Count} containing ");
+                    // 
                      if (dataset == null)
                      {
                          MessageBox.Show(" line924                   if(dataset==null)MessageBox.Show(");
@@ -1032,6 +1032,7 @@ namespace DataConverter
             ChkcabWO.IsChecked = true;
 
             ChkcabWO.IsChecked = true;
+            ChkcabW.IsChecked = true;
             Chkcon.IsChecked = true;
 
             Chkcon.IsChecked = true;
@@ -1099,6 +1100,7 @@ namespace DataConverter
             ChkcabWO.IsChecked = false;
 
             ChkcabWO.IsChecked = false;
+            ChkcabW.IsChecked = false;
             Chkcon.IsChecked = false;
 
             Chkcon.IsChecked = false;
@@ -1184,6 +1186,10 @@ namespace DataConverter
             if (ChkcabWO.IsChecked.HasValue)
             {
                 ChkcabWO.IsChecked = !ChkcabWO.IsChecked.Value;
+            }
+            if (ChkcabW.IsChecked.HasValue)
+            {
+                ChkcabW.IsChecked = !ChkcabW.IsChecked.Value;
             }
             if (Chkcon.IsChecked.HasValue)
             {

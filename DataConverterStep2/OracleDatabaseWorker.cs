@@ -473,8 +473,8 @@ namespace DataConverterStep2.Classes
         {
             cmd = new OracleCommand();
             cmd.Connection = conn;
-          //  cmd.CommandText = $"UPDATE   {table} SET GUID = '{GUID}' where GID = '{GID}'";
-            cmd.CommandText = $"insert into   dummy (GUID, GID)\n Values( '{GUID}', '{GID}') ";
+           cmd.CommandText = $"UPDATE   {table} SET GUID = '{GUID}' where GID = '{GID}'";
+          //  cmd.CommandText = $"insert into   dummy (GUID, GID)\n Values( '{GUID}', '{GID}') ";
             cmd.CommandType = CommandType.Text;
             await cmd.ExecuteNonQueryAsync();
         }

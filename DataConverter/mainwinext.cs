@@ -18,9 +18,9 @@ using Task = System.Threading.Tasks.Task;
 namespace DataConverter
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for DataConvert.xaml
     /// </summary>
-    public partial class MainWindow : DXWindow
+    public partial class DataConvert : DXWindow
     {
 
 
@@ -662,39 +662,39 @@ make aure not olt port*/
                  using (UnitOfWork uow = new UnitOfWork(Tsdl))
                  {
                      //do work
-                     cabdata.ForEach( (row) =>
-                    {
-                         Task.Delay(1);
-                        bool test = false;
+                     cabdata.ForEach((row) =>
+                   {
+                       Task.Delay(1);
+                       bool test = false;
                         //StaticHelperMethods.WriteOut($"{string.Join("\t", row.Select(x => x.Key + ":" + x.Value))}");
                         //make sure not imported already
                         test = (!uow.Query<Cable>()
-                         .Any(x => x.ExternalSystemId.ToString() == row["CABLEID"]));
-                        if (test)
-                        {
-                            PhysicalCable cable = new PhysicalCable(uow);
-                            cable.Source = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
-                            cable.Destination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
+                        .Any(x => x.ExternalSystemId.ToString() == row["CABLEID"]));
+                       if (test)
+                       {
+                           PhysicalCable cable = new PhysicalCable(uow);
+                           cable.Source = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["SOURCELOCATIONID"]);
+                           cable.Destination = uow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
                             //                      
                             using (var odw = new OracleDatabaseWorker(tbOracleConnectionStringText))
-                            {
-                                var pc = ImporterHelper.ProcessCable(cable, row, cablesWithOUTSpansTable, ProgressMade, $"Cabes and pairs w/o spans");                             
-                            }
-                            uow.CommitChanges();
-                            
-                        }
-                        else
-                        {
+                           {
+                               var pc = ImporterHelper.ProcessCable(cable, row, cablesWithOUTSpansTable, ProgressMade, $"Cabes and pairs w/o spans");
+                           }
+                           uow.CommitChanges();
+
+                       }
+                       else
+                       {
                             //  successfulCable++;
                             ProgressMade?.Invoke(stepName,
-                                 new ProgressMadeEventArgs(new ImportedItem()
-                                 {
-                                     SourceTable = cablesWithOUTSpansTable,
-                                     ImportStatus = "OK",
-                                     Type = $"Already Exists {row["CABLEID"]}"
-                                 }));
-                        }
-                    });
+                                new ProgressMadeEventArgs(new ImportedItem()
+                                {
+                                    SourceTable = cablesWithOUTSpansTable,
+                                    ImportStatus = "OK",
+                                    Type = $"Already Exists {row["CABLEID"]}"
+                                }));
+                       }
+                   });
                  } //end uow 
 
              };
@@ -905,7 +905,7 @@ make aure not olt port*/
                             }
                             else
                             {
-                                   ProgressMade?.Invoke(stepName,                             null);
+                                ProgressMade?.Invoke(stepName, null);
                             }
 
                             //make sure not imported already
@@ -1196,13 +1196,15 @@ make aure not olt port*/
 
             List<List<Dictionary<string, string>>> Func(List<Dictionary<string, string>> inlist)
             {
+                ////inlist = inlist.Where(x => x.SourceType != null).ToList();
                 List<List<Dictionary<string, string>>> ret = new List<List<Dictionary<string, string>>>();
                 var cableids = inlist.Select(x => x["CABLEID"]).Distinct();
                 List<Dictionary<string, string>> buffer = new List<Dictionary<string, string>>();
-                foreach (var cableid in cableids)
+                var grps = inlist.GroupBy(x => x["CABLEID"]).Reverse();
+                foreach (var grp in grps)
                 {
-
-                    buffer.AddRange(inlist.Where(x => x["CABLEID"] == cableid));
+                    buffer.AddRange(grp.Select(x => x));//.Where(x => x["CABLEID"] == cableid));
+                                                        // buffer.AddRange(inlist.Where(x => x["CABLEID"] == cableid));
 
                     if (buffer.Count > 1000)
                     {
@@ -1218,7 +1220,7 @@ make aure not olt port*/
             {
                 foreach (var row in inlist)
                 {
-
+                    
                     using (var uow = new UnitOfWork(Tsdl))
                     {
                         try
@@ -1233,7 +1235,7 @@ make aure not olt port*/
                                 !int.TryParse(row["PAIRID"], out int cpid))
                             {
                                 throw new Exception($"Bad Data {row["PAIRID"]}");
-                            }
+                            } 
                             if (row["LOGICALCOUNTID"] == "1") continue;//skip
 
 
@@ -1393,12 +1395,12 @@ make aure not olt port*/
 
             Func<List<Dictionary<string, string>>, List<List<Dictionary<string, string>>>> func = (inlist) =>
             {
+                var grps = inlist.GroupBy(x => x["SPLITTERID"]);
                 List<List<Dictionary<string, string>>> ret = new List<List<Dictionary<string, string>>>();
-                var splitterCodes = (from x in inlist select x["SPLITTERID"]).Distinct();
-                splitterCodes.ForEach((oc) =>
-        {
-            ret.Add(inlist.Where(x => x["SPLITTERID"] == oc).ToList());
-        });
+                foreach (var grp in grps)
+                {
+                    ret.Add(grp.ToList());
+                }   
                 return ret;
             };
             //action to take on eas=ch task data
@@ -1489,12 +1491,12 @@ make aure not olt port*/
                                       //method to split into separate tasks
             Func<List<Dictionary<string, string>>, List<List<Dictionary<string, string>>>> func = (inlist) =>
             {
+                var grps = inlist.GroupBy(x => x["OLTID"]);
                 List<List<Dictionary<string, string>>> ret = new List<List<Dictionary<string, string>>>();
-                var oltCodes = (from x in inlist select x["OLTID"]).Distinct();
-                oltCodes.ForEach((oc) =>
-        {
-            ret.Add(inlist.Where(x => x["OLTID"] == oc).ToList());
-        });
+                foreach (var grp in grps)
+                {
+                    ret.Add(grp.ToList());
+                }  
                 return ret;
             };
             //action to take on eas=ch task data

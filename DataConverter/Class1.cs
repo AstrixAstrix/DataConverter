@@ -36,9 +36,9 @@ using State = NewNetServices.Module.BusinessObjects.CableManagement.State;
 namespace DataConverter
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for DataConvert.xaml
     /// </summary>
-    public partial class MainWindow : DXWindow
+    public partial class DataConvert : DXWindow
     {
 
 
@@ -347,9 +347,9 @@ namespace DataConverter
                             //pipdelimited str   Capacity||'|'||std_code||'|'||class  as size|type|class
                             var arr = str.Split('|');
                             string size = arr[0], cls = arr[2], type = "";
-                            if (MainWindow.CableTypeDictionary.ContainsKey(arr[1].Trim()))
+                            if (DataConvert.CableTypeDictionary.ContainsKey(arr[1].Trim()))
                             {
-                                type = MainWindow.CableTypeDictionary[arr[1].Trim()];
+                                type = DataConvert.CableTypeDictionary[arr[1].Trim()];
                             }
 
                             cclass = uow.Query<CableClass>().FirstOrDefault(x => x.TypeName == cls);

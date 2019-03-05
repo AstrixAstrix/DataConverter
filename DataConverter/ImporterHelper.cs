@@ -66,9 +66,9 @@ namespace DataConverter.Classes
                     : null;
                 junk.Status = !string.IsNullOrWhiteSpace(row["STATUS"])
                     ? uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == row["STATUS"])
-                    : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == MainWindow.UNK);
+                    : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == DataConvert.UNK);
 
-                junk.Wirecenter = uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+                junk.Wirecenter = uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == DataConvert.UNK);
 
                 //junk.Comment = $"APId:{row["APID"] } ";
 
@@ -117,9 +117,9 @@ namespace DataConverter.Classes
 
                 pole.Type = uow.Query<PoleType>().FirstOrDefault(x => x.TypeName == "POLE");
                 pole.Status = !string.IsNullOrWhiteSpace(row["STATUS"]) ? uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == row["STATUS"])
-                    : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == MainWindow.UNK);
+                    : uow.Query<LocationStatus>().FirstOrDefault(x => x.StatusName == DataConvert.UNK);
                 pole.Comment = $"APId:{row["APID"] } ";
-                pole.Wirecenter = uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+                pole.Wirecenter = uow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == DataConvert.UNK);
 
                 pole.Boundary = !string.IsNullOrWhiteSpace(row["CITY"])
                     ? uow.Query<Boundary>().FirstOrDefault(x => x.Name == row["CITY"])
@@ -149,7 +149,7 @@ namespace DataConverter.Classes
         public static async Task<List<PhysicalPair>> DoCablePairs(UnitOfWork uow, int? externalSystemId, string table, string[] columns)
         {
             var pairsForCable = new List<Dictionary<string, string>>();
-            using (var odw = new OracleDatabaseWorker(MainWindow.tbOracleConnectionStringText))
+            using (var odw = new OracleDatabaseWorker(DataConvert.tbOracleConnectionStringText))
             {//, $"Select {string.Join(", " , cpColumns)} from {CABLEPAIR_Table} where CABLEID = '{cable.ExternalSystemId}'"
 
 
@@ -230,7 +230,7 @@ namespace DataConverter.Classes
 
 
                     uow.CommitChanges();
-                    MainWindow.currentSuccess++;
+                    DataConvert.currentSuccess++;
                     progressMade?.Invoke(stepName,
                                          new ProgressMadeEventArgs(new ImportedItem()
                                          {
@@ -248,7 +248,7 @@ namespace DataConverter.Classes
             {
                 StaticHelperMethods.WriteOut($"{ex}");
                 // return false;
-                MainWindow.currentErrors++;
+                DataConvert.currentErrors++;
                 progressMade?.Invoke(stepName,
                                      new ProgressMadeEventArgs(new ImportedItem()
                                      {
@@ -325,7 +325,7 @@ namespace DataConverter.Classes
         //                ? puow.Query<CableType>().FirstOrDefault(x => x.TypeName == "DROPCABLE")
         //                  : !string.IsNullOrWhiteSpace(ctype)
         //                ? puow.Query<CableType>().FirstOrDefault(x => x.TypeName == ctype)
-        //                : puow.Query<CableType>().FirstOrDefault(x => x.TypeName == MainWindow.UNK);
+        //                : puow.Query<CableType>().FirstOrDefault(x => x.TypeName == DataConvert.UNK);
 
         //            if (!string.IsNullOrWhiteSpace(row["INSTALLDATE"]) && DateTime.TryParse(row["INSTALLDATE"], out DateTime dt))
         //                cable.DatePlaced = dt;
@@ -334,7 +334,7 @@ namespace DataConverter.Classes
         //            puow.CommitChanges();
         //            //  puow.CommitTransaction();
 
-        //            MainWindow.currentSuccess++;
+        //            DataConvert.currentSuccess++;
         //            NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"AfterCreation {sw3.Elapsed}", true, true, tempfile);
         //            progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
         //            {
@@ -353,7 +353,7 @@ namespace DataConverter.Classes
         //    }
         //    catch (Exception ex)
         //    {
-        //        MainWindow.currentErrors++;
+        //        DataConvert.currentErrors++;
         //        progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
         //        {
         //            SourceTable = cabTable,
@@ -385,7 +385,7 @@ namespace DataConverter.Classes
                     // puow.Query<Location>().FirstOrDefault(x => x.ExternalSystemId.ToString() == row["DESTINATIONLOCATIONID"]);
 
                     cable.ExternalSystemId = int.Parse(row["CABLEID"]);
-                    cable.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+                    cable.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == DataConvert.UNK);
                     cable.WorkOrder = !string.IsNullOrWhiteSpace(row["WORKORDERID"])
                         ? puow.Query<WorkOrder>().FirstOrDefault(x =>
                             x.ExternalSystemId.ToString() == row["WORKORDERID"] || x.OrderNumber == row["WORKORDERID"])
@@ -409,7 +409,7 @@ namespace DataConverter.Classes
                                : 0;
                     }
                     cable.Information = row["SUFFIX"];
-                    cable.Class = (!string.IsNullOrWhiteSpace(row["FORC"])) ? 
+                    cable.Class = (!string.IsNullOrWhiteSpace(row["FORC"])) ?
                         puow.Query<CableClass>().FirstOrDefault(x => x.TypeName == row["FORC"]) : null;
                     cable.Size = (!string.IsNullOrWhiteSpace(row["CABLESIZE"])) &&
                                  int.TryParse(row["CABLESIZE"], out int sz)
@@ -418,10 +418,10 @@ namespace DataConverter.Classes
 
                     cable.Media = puow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == "Media");
 
-                    string typestr = MainWindow.UNK;
-                    if ( MainWindow.CableTypeDictionary.ContainsKey(row["CABLETYPE"].Trim()))
+                    string typestr = DataConvert.UNK;
+                    if (DataConvert.CableTypeDictionary.ContainsKey(row["CABLETYPE"].Trim()))
                     {
-                        typestr = MainWindow.CableTypeDictionary[row["CABLETYPE"].Trim()];
+                        typestr = DataConvert.CableTypeDictionary[row["CABLETYPE"].Trim()];
                         cable.Type = puow.Query<CableType>().FirstOrDefault(x => x.TypeName == typestr);
 
                     }
@@ -434,7 +434,7 @@ namespace DataConverter.Classes
                     cable.CableName = cable.GeneratedName; //{ 
                     puow.Save(cable);
 
-                    MainWindow.currentSuccess++;
+                    DataConvert.currentSuccess++;
                     NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"AfterCreation {sw3.Elapsed}", true, true, tempfile);
                     progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
                     {
@@ -453,7 +453,7 @@ namespace DataConverter.Classes
             }
             catch (Exception ex)
             {
-                MainWindow.currentErrors++;
+                DataConvert.currentErrors++;
                 progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
                 {
                     SourceTable = cabTable,
@@ -466,7 +466,7 @@ namespace DataConverter.Classes
             NewNetServices.Module.Core.StaticHelperMethods.WriteOut($"CableMethodTime:\t{sw.Elapsed}", true, true, tempfile);
             return false;
         }
-        
+
         public static void ProcessConduit(UnitOfWork puow, Dictionary<string, string> row, string conTable,
             EventHandler<ProgressMadeEventArgs> progressMade, string stepName)
         {
@@ -490,11 +490,11 @@ namespace DataConverter.Classes
 
                 conduit.Source = cable != null && cable.Source != null
                     ? cable.Source
-                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == DataConvert.UNK);
 
                 conduit.Destination = cable != null && cable.Destination != null
                     ? cable.Destination
-                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == MainWindow.UNK);
+                    : puow.Query<Location>().FirstOrDefault(x => x.LocationName == DataConvert.UNK);
 
                 conduit.ExternalSystemId = int.Parse(row["ID"]);
                 conduit.Wirecenter = puow.Query<Wirecenter>().FirstOrDefault(x => x.LocationName == "UNKNOWN");
@@ -517,7 +517,7 @@ namespace DataConverter.Classes
 
                 conduit.Type = puow.Query<ConduitType>().FirstOrDefault(x => x.TypeName == (row["TYPE"] != ""
                                                                                  ? row["TYPE"]
-                                                                                 : MainWindow.UNK));
+                                                                                 : DataConvert.UNK));
 
                 conduit.Size = puow.Query<ConduitSize>().FirstOrDefault(x => x.Code == row["CODE"]);
 
@@ -532,7 +532,7 @@ namespace DataConverter.Classes
 
                 conduit.ConduitName = conduit.GeneratedName; //{
                 puow.CommitChanges();
-                MainWindow.currentSuccess++;
+                DataConvert.currentSuccess++;
                 progressMade?.Invoke(stepName,
                     new ProgressMadeEventArgs(new ImportedItem()
                     {
@@ -548,7 +548,7 @@ namespace DataConverter.Classes
             catch (Exception ex)
             {
 
-                MainWindow.currentErrors++;
+                DataConvert.currentErrors++;
                 progressMade?.Invoke(stepName, new ProgressMadeEventArgs(new ImportedItem()
                 {
                     SourceTable = conTable,
@@ -620,7 +620,7 @@ namespace DataConverter.Classes
             //"ADDYID", "STREET", "CITY", "STATE", "FLEXTEXT", "CODE", "SUBID"
             if (!puow.Query<Subscriber>().Any(x => x.ExternalSystemId.ToString() == row["SUBID"]))
             {
-                using (UnitOfWork uow = new UnitOfWork(MainWindow.Tsdl))
+                using (UnitOfWork uow = new UnitOfWork(DataConvert.Tsdl))
                 {
                     try
                     {
@@ -647,7 +647,7 @@ namespace DataConverter.Classes
                         sub.LocationName = sub.Address?.Street;
 
                         uow.CommitChanges();
-                        MainWindow.currentSuccess++;
+                        DataConvert.currentSuccess++;
                         progressMade?.Invoke(stepName,
                                              new ProgressMadeEventArgs(new ImportedItem()
                                              {
@@ -666,7 +666,7 @@ namespace DataConverter.Classes
                     {
                         StaticHelperMethods.WriteOut($"{ex}");
                         // return false;
-                        MainWindow.currentErrors++;
+                        DataConvert.currentErrors++;
                         progressMade?.Invoke(stepName,
                                              new ProgressMadeEventArgs(new ImportedItem()
                                              {
@@ -705,8 +705,8 @@ namespace DataConverter.Classes
                 return true;
             }
         }
-        //        private static string defaultStatusName = MainWindow.UNK;
-        //        private static string defaultTypeName = MainWindow.UNK;
+        //        private static string defaultStatusName = DataConvert.UNK;
+        //        private static string defaultTypeName = DataConvert.UNK;
 
         //        //public static Guid ImportSubscriber(string[] args, string cmsconnectionString, string oracleconnectionString, out string tinfo)
         //        //{
@@ -720,17 +720,17 @@ namespace DataConverter.Classes
         //        //        sub.Status = stat;
         //        //        // now get type , if not exist, make
         //        //        sub.Type = GetSubscriberType(args, uow);
-        //        //        sub.Handle = args[MainWindow.GID_Index];
-        //        //        sub.Type = uow.Query<SubscriberType>().FirstOrDefault(x => x.TypeName == args[MainWindow.locLAYER_index]);
+        //        //        sub.Handle = args[DataConvert.GID_Index];
+        //        //        sub.Type = uow.Query<SubscriberType>().FirstOrDefault(x => x.TypeName == args[DataConvert.locLAYER_index]);
         //        //        sub.IsEngineering = true;
         //        //        string str = "";
         //        //        //now get label info
         //        //        using (var odw = new OracleDatabaseWorker(oracleconnectionString))
         //        //        {
-        //        //            labelInfo = odw.GetInfoFromLabelTable(args[MainWindow.GID_Index]);
+        //        //            labelInfo = odw.GetInfoFromLabelTable(args[DataConvert.GID_Index]);
         //        //        }
         //        //        str = string.Join(" | ", labelInfo.ToArray());
-        //        //        str += !string.IsNullOrWhiteSpace(args[MainWindow.locONT_ID_index]) ? $" ONT_ID: {args[MainWindow.locONT_ID_index]}" : "";
+        //        //        str += !string.IsNullOrWhiteSpace(args[DataConvert.locONT_ID_index]) ? $" ONT_ID: {args[DataConvert.locONT_ID_index]}" : "";
         //        //        if (str.Length > 99)
         //        //        {
         //        //            sub.Comment = str;
@@ -760,17 +760,17 @@ namespace DataConverter.Classes
         //        //        sub.Status = stat;
         //        //        // now get type , if not exist, make
         //        //        sub.Type = GetPoleType(args, uow);
-        //        //        sub.Handle = args[MainWindow.GID_Index];
-        //        //        sub.Type = uow.Query<PoleType>().FirstOrDefault(x => x.TypeName == args[MainWindow.locLAYER_index]);
+        //        //        sub.Handle = args[DataConvert.GID_Index];
+        //        //        sub.Type = uow.Query<PoleType>().FirstOrDefault(x => x.TypeName == args[DataConvert.locLAYER_index]);
         //        //        sub.IsEngineering = true;
         //        //        string str;
         //        //        //now get label info
         //        //        using (var odw = new OracleDatabaseWorker(oracleconnectionString))
         //        //        {
-        //        //            labelInfo = odw.GetInfoFromLabelTable(args[MainWindow.GID_Index]);
+        //        //            labelInfo = odw.GetInfoFromLabelTable(args[DataConvert.GID_Index]);
         //        //        }
         //        //        str = string.Join(" | ", labelInfo.ToArray());
-        //        //        str += !string.IsNullOrWhiteSpace(args[MainWindow.locONT_ID_index]) ? $" ONT_ID: {args[MainWindow.locONT_ID_index]}" : "";
+        //        //        str += !string.IsNullOrWhiteSpace(args[DataConvert.locONT_ID_index]) ? $" ONT_ID: {args[DataConvert.locONT_ID_index]}" : "";
         //        //        if (str.Length > 99)
         //        //        {
         //        //            sub.Comment = str;
@@ -798,15 +798,15 @@ namespace DataConverter.Classes
         //        //        sub.Status = stat;
         //        //        // now get type , if not exist, make
         //        //        sub.Type = GetJunctionType(args, uow);
-        //        //        sub.Handle = args[MainWindow.GID_Index];
+        //        //        sub.Handle = args[DataConvert.GID_Index];
         //        //        sub.IsEngineering = true;
-        //        //        sub.Type = uow.Query<JunctionType>().FirstOrDefault(x => x.TypeName == args[MainWindow.locLAYER_index]);
+        //        //        sub.Type = uow.Query<JunctionType>().FirstOrDefault(x => x.TypeName == args[DataConvert.locLAYER_index]);
 
         //        //        string str;
         //        //        //now get label info
         //        //        using (var odw = new OracleDatabaseWorker(oracleconnectionString))
         //        //        {
-        //        //            if (args[MainWindow.locSYM_NAME_index] == "PED")
+        //        //            if (args[DataConvert.locSYM_NAME_index] == "PED")
         //        //            {
         //        //                var lroute = odw.GetJunctionRoute(sub.Handle);
         //        //                var lsize = odw.GetJunctionSize(sub.Handle);
@@ -825,7 +825,7 @@ namespace DataConverter.Classes
         //        //                    sub.DatePlaced = dt;
         //        //                }
         //        //            }
-        //        //            else if (args[MainWindow.locSYM_NAME_index] == "NT_PED")
+        //        //            else if (args[DataConvert.locSYM_NAME_index] == "NT_PED")
         //        //            {
         //        //                var lsize = odw.GetJunctionSize(sub.Handle);
         //        //                if (lsize.Count > 0)
@@ -833,10 +833,10 @@ namespace DataConverter.Classes
         //        //                    sub.Size = uow.Query<JunctionSize>().FirstOrDefault(x => x.Size == lsize[0]);
         //        //                }
         //        //            }
-        //        //            labelInfo = odw.GetInfoFromLabelTable(args[MainWindow.GID_Index]);
+        //        //            labelInfo = odw.GetInfoFromLabelTable(args[DataConvert.GID_Index]);
         //        //        }
-        //        //        str = args[MainWindow.locTYPE_NAME_index] + string.Join(" | ", labelInfo.ToArray());
-        //        //        str += !string.IsNullOrWhiteSpace(args[MainWindow.locONT_ID_index]) ? $" ONT_ID: {args[MainWindow.locONT_ID_index]}" : "";
+        //        //        str = args[DataConvert.locTYPE_NAME_index] + string.Join(" | ", labelInfo.ToArray());
+        //        //        str += !string.IsNullOrWhiteSpace(args[DataConvert.locONT_ID_index]) ? $" ONT_ID: {args[DataConvert.locONT_ID_index]}" : "";
 
         //        //        if (str.Length > 99)
         //        //        {
@@ -867,10 +867,10 @@ namespace DataConverter.Classes
         //        //            sub.Status = stat;
         //        //            // now get type , if not exist, make
         //        //            //  sub.Type = GetPhysicalCableType(args, uow);
-        //        //            sub.Handle = args[MainWindow.GID_Index];
+        //        //            sub.Handle = args[DataConvert.GID_Index];
         //        //            sub.IsEngineering = true;
 
-        //        //            sub.Media = uow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == MainWindow.UNK);
+        //        //            sub.Media = uow.Query<CableMedia>().FirstOrDefault(x => x.TypeName == DataConvert.UNK);
         //        //            sub.Class = uow.Query<CableClass>().FirstOrDefault(x => x.TypeName == "Fiber");
 
 
@@ -882,9 +882,9 @@ namespace DataConverter.Classes
         //        //                {
         //        //                    sub.Size = uow.Query<CableSize>().FirstOrDefault(x => x.Code == lsize[0]);
         //        //                }
-        //        //                labelInfo = odw.GetInfoFromLabelTable(args[MainWindow.GID_Index]);
+        //        //                labelInfo = odw.GetInfoFromLabelTable(args[DataConvert.GID_Index]);
         //        //            }
-        //        //            var str = args[MainWindow.cabTYPE_NAME_index] + string.Join(" | ", labelInfo.ToArray());
+        //        //            var str = args[DataConvert.cabTYPE_NAME_index] + string.Join(" | ", labelInfo.ToArray());
         //        //            if (str.Length > 99)
         //        //            {
         //        //                sub.Comment = str;
@@ -892,7 +892,7 @@ namespace DataConverter.Classes
         //        //            }
         //        //            else
         //        //                sub.CableName = string.IsNullOrWhiteSpace(str) ? "<Empty>" : str;
-        //        //            sub.Type = uow.Query<CableType>().FirstOrDefault(x => x.TypeName == args[MainWindow.cabLAYER_index]);
+        //        //            sub.Type = uow.Query<CableType>().FirstOrDefault(x => x.TypeName == args[DataConvert.cabLAYER_index]);
 
         //        //            uow.CommitChanges();
         //        //            tinfo = sub.CableName;
@@ -986,7 +986,7 @@ namespace DataConverter.Classes
         //            {
         //                return loc;
         //            }
-        //            else if ((loc = nestedUow.Query<Location>().FirstOrDefault(x => x.LocationName == MainWindow.UNK)) != null)
+        //            else if ((loc = nestedUow.Query<Location>().FirstOrDefault(x => x.LocationName == DataConvert.UNK)) != null)
         //            {
 
         //                return loc;
@@ -995,7 +995,7 @@ namespace DataConverter.Classes
         //            {
         //                loc = new Location(nestedUow)
         //                {
-        //                    LocationName = MainWindow.UNK,
+        //                    LocationName = DataConvert.UNK,
         //                    Status = NewNetServices.Module.BusinessObjects.Core.GlobalSystemSettings.GetInstanceFromDatabase(nestedUow).DefaultLocationStatusAvailable
         //                };
         //            }
@@ -1045,8 +1045,8 @@ namespace DataConverter.Classes
         //  
         //    if ()
         //}
-       
- public class ProgressMadeEventArgs : EventArgs
+
+        public class ProgressMadeEventArgs : EventArgs
         {
 
             public ImportedItem I = null;

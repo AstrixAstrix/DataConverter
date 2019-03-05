@@ -21,7 +21,7 @@ namespace DataConverterStep2
 {
 
 
-    public partial class MainWindow : DXWindow
+    public partial class DataConvertII : DXWindow
     {
         private const int MAXHANDLES = 64;
 
@@ -38,7 +38,7 @@ namespace DataConverterStep2
         public static string tbOracleConnectionStringText = string.Empty;
         private double timeleft = 0.0;
         private long totalRecordsToProcess;
-        public MainWindow()
+        public DataConvertII()
         {
             InitializeComponent();
             CreateDataLayer();
